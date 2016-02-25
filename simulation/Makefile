@@ -1,0 +1,22 @@
+CC = mpicc
+CFLAGS = -g -Wall -I.
+LDFLAGS =
+EXEC = producer_consumer_decoupling
+
+
+all: $(EXEC)
+
+$(EXEC): *.o
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+%.o: %.c
+	$(CC) $(CFLAGS) -c $^
+run:
+	BUFFERING_NUMBER_OF_PRODUCERS=4 \
+    BUFFERING_NUMBER_OF_CONSUMERS=4 \
+    BUFFERING_NUMBER_OF_SERVERS=1 \
+    mpiexec -n 9 ./$(EXEC)
+
+
+clean:
+	-rm -f *.o  *~ $(EXEC)
+

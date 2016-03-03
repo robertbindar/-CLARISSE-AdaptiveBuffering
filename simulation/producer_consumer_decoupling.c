@@ -17,16 +17,22 @@
 
 int main(int argc, char **argv)
 {
-  int rank, nprocs, membership_key;
+  int32_t rank, nprocs, membership_key;
   MPI_Comm comm;
 
-  MPI_Init(&argc,&argv);
+  int32_t provided;
+
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+  if (provided != MPI_THREAD_MULTIPLE) {
+    handle_err(-1, "Current MPI implementation does not support multiple threads");
+  }
+
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 
-  int nr_producers = DEFAULT_PRODUCERS_NUMBER;
-  int nr_consumers = DEFAULT_CONSUMERS_NUMBER;
-  int nr_servers = DEFAULT_SERVERS_NUMBER;
+  uint32_t nr_producers = DEFAULT_PRODUCERS_NUMBER;
+  uint32_t nr_consumers = DEFAULT_CONSUMERS_NUMBER;
+  uint32_t nr_servers = DEFAULT_SERVERS_NUMBER;
 
   char *np = getenv("BUFFERING_NUMBER_OF_PRODUCERS");
   char *nc = getenv("BUFFERING_NUMBER_OF_CONSUMERS");
@@ -50,7 +56,7 @@ int main(int argc, char **argv)
   switch (membership_key) {
   case 1: {
     MPI_Comm intercomm_producer, intercomm_consumer;
-    int err;
+    int32_t err;
     // local_intra, local group leader, peer comm, remote leader, tag, new intercomm
     err = MPI_Intercomm_create(comm, 0, MPI_COMM_WORLD, 0, 1, &intercomm_producer);
     if (err != MPI_SUCCESS)
@@ -67,7 +73,7 @@ int main(int argc, char **argv)
   }
   case 0: {
     MPI_Comm intercomm_server;
-    int err;
+    int32_t err;
 
     err = MPI_Intercomm_create(comm, 0, MPI_COMM_WORLD, nr_producers, 1, &intercomm_server);
     if (err != MPI_SUCCESS)
@@ -80,7 +86,7 @@ int main(int argc, char **argv)
   }
   case 2: {
     MPI_Comm intercomm_server;
-    int err;
+    int32_t err;
 
     err = MPI_Intercomm_create(comm, 0, MPI_COMM_WORLD, nr_producers, 1, &intercomm_server);
     if (err != MPI_SUCCESS)

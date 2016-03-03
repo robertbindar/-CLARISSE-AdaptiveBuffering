@@ -4,7 +4,6 @@
 #include "stdio.h"
 #include "buffer_pool_types.h"
 
-#define OP_SIZE 10
 #define MAX_DATA 100
 
 static void handle_err(int errcode, char *str)

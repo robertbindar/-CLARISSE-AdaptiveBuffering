@@ -1,9 +1,9 @@
+#include <stdio.h>
+#include <utils.h>
+#include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include "consumer.h"
-#include "stdio.h"
-#include "utils.h"
-#include "string.h"
-#include "stdlib.h"
-#include "unistd.h"
 
 
 void consumer(MPI_Comm intercomm_server)

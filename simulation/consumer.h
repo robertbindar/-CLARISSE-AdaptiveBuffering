@@ -1,6 +1,6 @@
 #pragma once
 
-#include "mpi.h"
+#include <mpi.h>
 
 void consumer(MPI_Comm intercomm_server);
 

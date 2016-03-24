@@ -1,8 +1,8 @@
 #include "server.h"
-#include "stdio.h"
 #include "listener.h"
-#include "stdlib.h"
 #include "utils.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer)
 {

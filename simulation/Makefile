@@ -1,7 +1,7 @@
 CC = mpicc
 MPIEXEC = mpiexec
-CFLAGS = -g -Wall -I ../buffering -O0
-LDFLAGS = -lpthread
+CFLAGS = -g -Wall -I ../include -O0
+LDFLAGS = -L../bin/ -lpthread -lbuffering
 EXEC = producer_consumer_decoupling
 
 

@@ -2,8 +2,9 @@
 
 #include <stdint.h>
 #include <pthread.h>
-#include "error.h"
+#include "errors.h"
 #include "uthash.h"
+#include "list.h"
 
 typedef struct dllist_link dllist_link;
 typedef struct dllist dllist;
@@ -40,7 +41,7 @@ error_code allocator_get(buffer_allocator_t *allocator, char **data);
 // it is moved from the assigned state to free.
 // A common use-case is to fetch a buffer, use it, then put it back into the
 // pool.
-error_code allocator_put(buffer_allocator_t *allocator, const char *data);
+error_code allocator_put(buffer_allocator_t *allocator, char *data);
 
 // Deletes "count" free buffers from the library. It might be used to free-up
 // memory when the number of free buffers exceeds a specific threshold.

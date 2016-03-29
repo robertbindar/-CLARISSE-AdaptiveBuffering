@@ -1,5 +1,5 @@
 #include "cls_buffering.h"
-#include <assert.h>
+/*#include <assert.h>*/
 
 error_code cls_get(cls_buf_handle_t bh, cls_byte_t *data)
 {

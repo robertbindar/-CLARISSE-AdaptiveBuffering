@@ -1,7 +1,11 @@
 #pragma once
 
-#include "buffer_pool_types.h"
+#include "buffering_types.h"
 #include "errors.h"
+
+error_code cls_init_buffering(cls_bufferpool_t *bufpool, cls_size_t bsize,
+                              cls_size_t max_elems, 
+
 
 error_code cls_get(cls_buf_handle_t bh, cls_byte_t *data);
 

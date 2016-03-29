@@ -49,6 +49,7 @@ typedef struct
 
   cls_buf_t *buffers;
 
+
   pthread_mutex_t lock;
 } cls_bufferpool_t;
 

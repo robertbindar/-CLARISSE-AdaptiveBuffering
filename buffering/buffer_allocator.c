@@ -1,3 +1,5 @@
+/* vim: set ts=8 sts=2 et sw=2: */
+
 #include "buffer_allocator.h"
 
 error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size)
@@ -9,7 +11,7 @@ error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  return BUFALLOCATOR_SUCCESS;
+  return BUFFERING_SUCCESS;
 }
 
 error_code allocator_get(buffer_allocator_t *allocator, char **data)
@@ -18,7 +20,7 @@ error_code allocator_get(buffer_allocator_t *allocator, char **data)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  error_code err = BUFALLOCATOR_SUCCESS;
+  error_code err = BUFFERING_SUCCESS;
 
   if (dllist_is_empty(&allocator->free_buffers)) {
     *data = NULL;
@@ -44,7 +46,7 @@ error_code allocator_put(buffer_allocator_t *allocator, char *data)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  error_code err = BUFALLOCATOR_SUCCESS;
+  error_code err = BUFFERING_SUCCESS;
 
   // If the buffer was assigned, remove it from the assigned table
   buffer_t *search;
@@ -76,7 +78,7 @@ error_code allocator_shrink(buffer_allocator_t *allocator, uint64_t count)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  error_code err = BUFALLOCATOR_SUCCESS;
+  error_code err = BUFFERING_SUCCESS;
 
   while (count > 0) {
     buffer_t *b = (buffer_t*) dllist_rem_head(&allocator->free_buffers);
@@ -98,7 +100,7 @@ error_code allocator_new(buffer_allocator_t *allocator, uint64_t count)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  error_code err = BUFALLOCATOR_SUCCESS;
+  error_code err = BUFFERING_SUCCESS;
 
   buffer_t *b = NULL;
   while (count > 0) {
@@ -127,7 +129,7 @@ error_code allocator_destroy(buffer_allocator_t *allocator)
     return BUFALLOCATOR_LOCK_ERR;
   }
 
-  error_code err = BUFALLOCATOR_SUCCESS;
+  error_code err = BUFFERING_SUCCESS;
 
   while (!dllist_is_empty(&allocator->free_buffers)) {
     buffer_t *b = (buffer_t*) dllist_rem_head(&allocator->free_buffers);

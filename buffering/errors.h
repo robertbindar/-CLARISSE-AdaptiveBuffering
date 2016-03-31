@@ -13,3 +13,7 @@ typedef enum
 
 void error_to_string(error_code err, char *retval);
 
+#define STATUS_OK(s) ((s) == BUFFERING_SUCCESS)
+#define STATUS_FAILED(s) ((s) != BUFFERING_SUCCESS)
+
+#define HANDLE_ERR(expr, errcode) if ((expr)) { return (errcode); }

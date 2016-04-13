@@ -10,6 +10,8 @@ typedef struct
 {
   buffer_allocator_t allocator;
 
+  uint64_t buffer_size;
+
   uint64_t nr_free_buffers;
   uint64_t nr_assigned_buffers;
 
@@ -18,6 +20,11 @@ typedef struct
 
   uint64_t max_pool_size;
 
+  pthread_mutex_t lock;
 } buffer_scheduler_t;
 
-//error_code sched_get_buffer(buffer_scheduler_t *scheduler, 
+error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size, uint64_t max_pool_size);
+error_code sched_destroy(buffer_scheduler_t *bufsched);
+error_code sched_alloc(buffer_scheduler_t *bufsched, char **buffer);
+error_code sched_free(buffer_scheduler_t *bufsched, char *buffer);
+

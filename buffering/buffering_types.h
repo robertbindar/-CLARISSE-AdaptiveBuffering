@@ -8,13 +8,6 @@
 typedef char cls_byte_t;
 typedef uint64_t cls_size_t;
 
-typedef enum
-{
-  BUF_READY,
-  BUF_BLOCKED_READ,
-  BUF_BLOCKED_WRITE
-} buffer_state_t;
-
 typedef struct
 {
   cls_size_t offset;
@@ -23,7 +16,6 @@ typedef struct
 
 typedef struct
 {
-  //buffer_state_t state;
   cls_buf_handle_t handle;
   UT_hash_handle hh;
 

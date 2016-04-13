@@ -1,5 +1,9 @@
 #! /bin/bash
 
+if [[ $1 = "clean" ]]; then
+  make clean -C buffering
+  make clean -C simulation
+fi
 BINARIES=bin/
 INCLUDE=include/
 

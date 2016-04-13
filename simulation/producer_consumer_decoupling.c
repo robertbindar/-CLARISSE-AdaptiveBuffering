@@ -15,6 +15,20 @@
 #define DEFAULT_CONSUMERS_NUMBER 1
 #define DEFAULT_SERVERS_NUMBER   1
 
+
+void handle_err(int errcode, char *str)
+{
+  char msg[MPI_MAX_ERROR_STRING];
+  char processor_name[MPI_MAX_PROCESSOR_NAME];
+  int32_t namelen, resultlen, my_rank;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  MPI_Get_processor_name(processor_name,&namelen);
+  MPI_Error_string(errcode, msg, &resultlen);
+  fprintf(stderr,"Process %d on %s %s: %s\nStack trace:\n", my_rank, processor_name,str, msg);
+  MPI_Abort(MPI_COMM_WORLD, 1);
+}
+
 int main(int argc, char **argv)
 {
   int32_t rank, nprocs, membership_key;
@@ -79,7 +93,7 @@ int main(int argc, char **argv)
     if (err != MPI_SUCCESS)
       handle_err(err, "MPI_Intercomm_create in proucer\n");
 
-    producer(intercomm_server);
+    producer(intercomm_server, comm);
 
     MPI_Comm_free(&intercomm_server);
     break;
@@ -92,7 +106,7 @@ int main(int argc, char **argv)
     if (err != MPI_SUCCESS)
       handle_err(err, "MPI_Intercomm_create in proucer\n");
 
-    consumer(intercomm_server);
+    consumer(intercomm_server, comm);
 
     MPI_Comm_free(&intercomm_server);
     break;

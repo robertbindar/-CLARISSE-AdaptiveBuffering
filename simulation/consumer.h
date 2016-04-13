@@ -2,5 +2,5 @@
 
 #include <mpi.h>
 
-void consumer(MPI_Comm intercomm_server);
+void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm);
 

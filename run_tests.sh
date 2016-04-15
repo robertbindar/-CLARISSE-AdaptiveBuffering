@@ -4,15 +4,12 @@
 
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(pwd)/bin/"
 
-make -C ./tests/
-for file in ./tests/*; do
+make -C buffering/tests
+for file in buffering/tests/*; do
   if [[ -x $file ]]
   then
     echo ">>>> Test $file started"
-    BUFFERING_NUMBER_OF_PRODUCERS=$1 \
-    BUFFERING_NUMBER_OF_CONSUMERS=$2 \
-    BUFFERING_NUMBER_OF_SERVERS=$3 \
-    mpiexec -n $(($1 + $2 + $3))  $file
+    ./$file $1 $2
     echo ">>>> Test $file finished"
   fi
 done

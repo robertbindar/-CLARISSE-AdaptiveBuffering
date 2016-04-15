@@ -19,7 +19,7 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer)
   MPI_Comm_remote_size(intercomm_producer, &producer_nprocs);
   MPI_Comm_remote_size(intercomm_consumer, &consumer_nprocs);
 
-  cls_init_buffering(&bufservice, MAX_DATA, 0);
+  cls_init_buffering(&bufservice, MAX_DATA, 4096);
 
   listener_t *listeners = calloc(producer_nprocs + consumer_nprocs, sizeof(listener_t));
   uint32_t k = 0;

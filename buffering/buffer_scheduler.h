@@ -6,7 +6,7 @@
 #include "buffer_allocator.h"
 #include "errors.h"
 
-typedef struct
+typedef struct _buffer_scheduler
 {
   buffer_allocator_t allocator;
 
@@ -25,6 +25,6 @@ typedef struct
 
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size, uint64_t max_pool_size);
 error_code sched_destroy(buffer_scheduler_t *bufsched);
-error_code sched_alloc(buffer_scheduler_t *bufsched, char **buffer);
-error_code sched_free(buffer_scheduler_t *bufsched, char *buffer);
+error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh);
+error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
 

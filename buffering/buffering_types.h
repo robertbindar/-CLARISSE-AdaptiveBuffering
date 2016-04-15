@@ -8,13 +8,13 @@
 typedef char cls_byte_t;
 typedef uint64_t cls_size_t;
 
-typedef struct
+typedef struct _cls_buf_handle
 {
   cls_size_t offset;
   uint32_t global_descr;
 } cls_buf_handle_t;
 
-typedef struct
+typedef struct _cls_buf
 {
   cls_buf_handle_t handle;
   UT_hash_handle hh;
@@ -29,6 +29,9 @@ typedef struct
   pthread_cond_t buf_ready;
 
   uint32_t nr_consumers_finished;
+
+  dllist_link link_alloc;
+  UT_hash_handle hh_alloc;
 } cls_buf_t;
 
 typedef struct

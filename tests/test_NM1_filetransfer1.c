@@ -37,6 +37,8 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     chunk = nrbufs - chunk * (nprod - 1);
   }
 
+  double start_time = MPI_Wtime();
+
   uint32_t i = 0;
   cls_buf_handle_t handle;
   handle.global_descr = 0;
@@ -63,6 +65,9 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 
     ++i;
   }
+
+  double end_time = MPI_Wtime();
+  fprintf(stderr, "=================Producer %d time: %lf============%d\n", rank, end_time - start_time, handle.offset);
 
   munmap(file_addr, file_size);
   close(fd);
@@ -93,6 +98,8 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 
   uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
 
+  double start_time = MPI_Wtime();
+
   uint32_t i = 0;
   cls_buf_handle_t handle;
   handle.global_descr = 0;
@@ -120,6 +127,10 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     write(fd, result.data, get.count);
     ++i;
   }
+
+  double end_time = MPI_Wtime();
+
+  fprintf(stderr, "=================Consumer %d time: %lf============\n", rank, end_time - start_time);
 
   close(fd);
 
@@ -154,7 +165,7 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     munmap(input_addr, file_size);
     close(input);
 
-    MPI_Abort(MPI_COMM_WORLD, passed);
+    /*MPI_Abort(MPI_COMM_WORLD, passed);*/
   }
 }
 

@@ -3,6 +3,7 @@
 if [[ $1 = "clean" ]]; then
   make clean -C buffering
   make clean -C simulation
+  make clean -C buffering/tests/
 fi
 BINARIES=bin/
 INCLUDE=include/
@@ -18,4 +19,6 @@ mv buffering/libbuffering.so $BINARIES
 
 make -C simulation/
 mv simulation/producer_consumer_decoupling $BINARIES
+
+make -C buffering/tests/
 

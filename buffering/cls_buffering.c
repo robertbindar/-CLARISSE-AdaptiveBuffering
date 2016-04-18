@@ -4,6 +4,7 @@
 #include "buffer_scheduler.h"
 #include <assert.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 error_code cls_init_buffering(cls_buffering_t *bufservice, cls_size_t bsize,
                               cls_size_t max_elems)
@@ -181,7 +182,7 @@ void print_buffers(cls_buffering_t *bufservice)
 {
   cls_buf_t *current, *tmp;
   HASH_ITER(hh, bufservice->buffers, current, tmp) {
-    fprintf(stderr, "{descr: %d, off: %d} ", current->handle.global_descr, current->handle.offset);
+    fprintf(stderr, "{descr: %" PRIu32 ", off: %" PRIu64 "} ", current->handle.global_descr, current->handle.offset);
   }
 
   fprintf(stderr, "\n");

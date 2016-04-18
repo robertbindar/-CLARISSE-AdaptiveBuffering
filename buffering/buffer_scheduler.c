@@ -17,7 +17,7 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
   bufsched->min_free_buffers = 1;
   bufsched->max_free_buffers = max_pool_size / 2 + 1;
 
-  bufsched->nr_free_buffers = 5;
+  bufsched->nr_free_buffers = 10;
 
   allocator_init(&bufsched->allocator, buffer_size);
 
@@ -39,11 +39,9 @@ static void stretch_allocator(buffer_scheduler_t *bufsched)
 {
   if (bufsched->nr_free_buffers + bufsched->nr_assigned_buffers >= bufsched->max_pool_size) {
     // TODO: call swapper
-    fprintf(stderr, "time to call the swapper! free: %d, assigned: %d\n",
-            bufsched->nr_free_buffers, bufsched->nr_assigned_buffers);
   }
 
-  uint64_t count = bufsched->max_free_buffers / 2;
+  uint64_t count = bufsched->nr_assigned_buffers * 2;
 
   allocator_new(&bufsched->allocator, count);
   bufsched->nr_free_buffers += count;
@@ -57,7 +55,6 @@ static void shrink_allocator(buffer_scheduler_t *bufsched)
 
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh)
 {
-  /*fprintf(stderr, "alloc %d\n", bh.offset);*/
   HANDLE_ERR(pthread_mutex_lock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
 
   // If there are no more free buffers, allocate more. This means we could
@@ -78,7 +75,6 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf
 
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
-  /*fprintf(stderr, "free %d\n", buffer->handle.offset);*/
   HANDLE_ERR(pthread_mutex_lock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
 
   allocator_put(&bufsched->allocator, buffer);
@@ -87,9 +83,9 @@ error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
   bufsched->nr_free_buffers++;
 
   // Release some memory, there are too many free buffers allocated
-  /*if (bufsched->nr_free_buffers == bufsched->max_free_buffers) {*/
-    /*shrink_allocator(bufsched);*/
-  /*}*/
+  if (bufsched->nr_free_buffers == bufsched->max_free_buffers) {
+    shrink_allocator(bufsched);
+  }
 
   HANDLE_ERR(pthread_mutex_unlock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
 

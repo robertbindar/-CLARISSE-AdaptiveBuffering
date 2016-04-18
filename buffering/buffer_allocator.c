@@ -17,7 +17,6 @@ error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size)
   return BUFFERING_SUCCESS;
 }
 
-
 // uthash uses memcmp comparison on structs, we need member-wise copying to
 // get rid of padding differences
 void copy_buf_handle(cls_buf_handle_t *dest, cls_buf_handle_t *src)

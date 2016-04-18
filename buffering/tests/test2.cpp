@@ -35,30 +35,33 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
 
     char *file_addr = (char *)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-    uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
-    uint32_t chunk = nrbufs / nprod;
-    uint32_t begin = rank * chunk;
-    if (rank == nprod - 1) {
-        chunk = nrbufs - chunk * (nprod - 1);
-    }
-
     auto start_time = steady_clock::now();
+
+    uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
 
     uint32_t i = 0;
     cls_buf_handle_t handle;
     handle.global_descr = 0;
 
-    while (i < chunk) {
-        handle.offset = (begin + i) * bufsize;
-
-        uint32_t count = 0;
-        if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
-            count = bufsize - (nrbufs * bufsize - file_size);
+    // All the producers will collectively write each buffer
+    while (i < nrbufs) {
+        uint32_t size;
+        if (file_size % bufsize && i == nrbufs - 1) {
+            size = bufsize - (nrbufs * bufsize - file_size);
         } else {
-            count = bufsize;
+            size = bufsize;
         }
 
-        cls_put(bufservice, handle, 0, file_addr + (begin + i) * bufsize, count);
+        uint32_t count = size / nprod;
+        if (rank == nprod - 1) {
+            // The last producer might get a bigger chunk
+            count = size - (nprod - 1) * (size / nprod);
+        }
+
+        handle.offset = i * bufsize;
+        uint32_t offset = rank * (size / nprod);
+
+        cls_put_all(bufservice, handle, offset, file_addr + i * bufsize + offset, count, nprod);
 
         ++i;
     }

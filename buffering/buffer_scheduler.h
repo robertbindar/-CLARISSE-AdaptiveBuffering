@@ -10,6 +10,8 @@ typedef struct _buffer_scheduler
 {
   buffer_allocator_t allocator;
 
+  uint64_t capacity;
+
   uint64_t buffer_size;
 
   uint64_t nr_free_buffers;
@@ -21,6 +23,11 @@ typedef struct _buffer_scheduler
   uint64_t max_pool_size;
 
   pthread_mutex_t lock;
+
+  pthread_mutex_t cond_lock;
+  uint8_t resize_alloc;
+  uint8_t shrink_alloc;
+  pthread_cond_t cond_alloc;
 } buffer_scheduler_t;
 
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size, uint64_t max_pool_size);

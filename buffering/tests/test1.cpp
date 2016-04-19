@@ -200,10 +200,11 @@ int main(int argc, char **argv)
     uint32_t max_pool_size = 4096;
 
     int32_t fd = open("input", O_RDONLY);
+    struct stat finfo;
     fstat(fd, &finfo);
     uint32_t file_size = finfo.st_size;
     uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
-    close(fd):
+    close(fd);
 
     cls_buffering_t bufservice;
     cls_init_buffering(&bufservice, bufsize, nrbufs);

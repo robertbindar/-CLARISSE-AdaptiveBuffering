@@ -30,3 +30,8 @@
 *.out
 *.app
 
+# Directories
+include/
+bin/
+.swaparea/
+

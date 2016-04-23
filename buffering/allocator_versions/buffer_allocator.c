@@ -1,6 +1,7 @@
 /* vim: set ts=8 sts=2 et sw=2: */
 
 #include "buffer_allocator.h"
+#include "buffering_types.h"
 #include <stdio.h>
 
 error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size)
@@ -29,8 +30,6 @@ static void init_buf_fields(cls_buf_t *buffer)
   buffer->nr_coll_participants = 0;
   buffer->nr_consumers_finished = 0;
   buffer->ready = 0;
-  buffer->is_swapped = 0;
-  buffer->consumers_finished = 0;
 }
 
 static void init_buffer(cls_buf_t *buffer)
@@ -39,7 +38,6 @@ static void init_buffer(cls_buf_t *buffer)
 
   pthread_mutex_init(&buffer->lock_write, NULL);
   pthread_mutex_init(&buffer->lock_read, NULL);
-  pthread_rwlock_init(&buffer->rwlock_swap, NULL);
   pthread_cond_init(&buffer->buf_ready, NULL);
 }
 
@@ -48,18 +46,8 @@ void destroy_buffer(cls_buf_t *buff)
   pthread_cond_destroy(&buff->buf_ready);
   pthread_mutex_destroy(&buff->lock_write);
   pthread_mutex_destroy(&buff->lock_read);
-  pthread_rwlock_destroy(&buff->rwlock_swap);
 
   free(buff->data);
-  free(buff);
-}
-
-static void release_buf_md(cls_buf_t *buff)
-{
-  pthread_cond_destroy(&buff->buf_ready);
-  pthread_mutex_destroy(&buff->lock_write);
-  pthread_mutex_destroy(&buff->lock_read);
-  pthread_rwlock_destroy(&buff->rwlock_swap);
   free(buff);
 }
 
@@ -130,42 +118,6 @@ error_code allocator_new(buffer_allocator_t *allocator, uint64_t count)
 
     --count;
   }
-
-  return BUFFERING_SUCCESS;
-}
-
-error_code allocator_move_to_free(buffer_allocator_t *allocator, cls_buf_t *buf)
-{
-  cls_buf_t *b = malloc(sizeof(cls_buf_t));;
-  if (!b) {
-    return BUFALLOCATOR_BAD_ALLOC;
-  }
-
-  init_buffer(b);
-
-  b->data = buf->data;
-  buf->data = NULL;
-
-  return allocator_put(allocator, b);
-}
-
-error_code allocator_move_from_free(buffer_allocator_t *allocator, cls_buf_t *buf)
-{
-
-  cls_buf_t *tmp = NULL;
-  allocator_get(allocator, &tmp, buf->handle);
-
-  buf->data = tmp->data;
-  release_buf_md(tmp);
-
-  return BUFFERING_SUCCESS;
-}
-
-
-error_code allocator_move(buffer_allocator_t *allocator, cls_buf_t *dest, cls_buf_t *src)
-{
-  dest->data = src->data;
-  src->data = NULL;
 
   return BUFFERING_SUCCESS;
 }

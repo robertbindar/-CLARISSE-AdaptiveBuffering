@@ -4,6 +4,8 @@
 *.swp
 *.swo
 *.swn
+*.swm
+*.swl
 
 # Compiled Object files
 *.slo

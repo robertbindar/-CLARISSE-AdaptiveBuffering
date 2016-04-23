@@ -207,7 +207,7 @@ int main(int argc, char **argv)
     close(fd);
 
     cls_buffering_t bufservice;
-    cls_init_buffering(&bufservice, bufsize, nrbufs);
+    cls_init_buffering(&bufservice, bufsize, nrbufs / 2);
 
     vector<std::thread> workers;
 

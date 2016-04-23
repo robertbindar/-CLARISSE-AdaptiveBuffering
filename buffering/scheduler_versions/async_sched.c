@@ -1,12 +1,10 @@
 /* vim: set ts=8 sts=2 et sw=2: */
 
 #include "buffer_scheduler.h"
+#include "buffering_types.h"
 #include <pthread.h>
 #include <stdio.h>
 
-static inline void mrucache_put(buffer_scheduler_t *bufsched, cls_buf_t *buf);
-static inline void mrucache_get(buffer_scheduler_t *bufsched, cls_buf_t **buf);
-static inline void mrucache_remove(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
 static void *stretch_allocator(void *arg)
 {
@@ -32,26 +30,10 @@ static void *stretch_allocator(void *arg)
       bufsched->resize_alloc = 0;
 
       if (bufsched->nr_free_buffers + bufsched->nr_assigned_buffers >= bufsched->max_pool_size) {
+        // TODO: call swapper
         pthread_mutex_unlock(&bufsched->lock);
 
         fprintf(stderr, "call the swapper \n");
-
-        // Call the swapper to freeup some memory
-        for (uint64_t i = 0; i < bufsched->nr_swapout; ++i) {
-          cls_buf_t *buf = NULL;
-
-          mrucache_get(bufsched, &buf);
-
-          swapper_swapout(&bufsched->swapper, buf);
-
-          allocator_move_to_free(&bufsched->allocator, buf);
-
-          pthread_mutex_lock(&bufsched->lock);
-          bufsched->nr_free_buffers++;
-          bufsched->nr_assigned_buffers--;
-          pthread_mutex_unlock(&bufsched->lock);
-        }
-
         continue;
       }
 
@@ -86,10 +68,10 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
   bufsched->nr_assigned_buffers = 0;
 
   // min_free_buffers has to be bigger than 0
-  bufsched->min_free_buffers = 300;
+  bufsched->min_free_buffers = 30;
   bufsched->max_free_buffers = max_pool_size / 4 + 1;
 
-  bufsched->capacity = 50;
+  bufsched->capacity = 40;
   bufsched->nr_free_buffers = bufsched->capacity;
 
   pthread_cond_init(&bufsched->cond_alloc, NULL);
@@ -110,10 +92,6 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
 
   pthread_attr_destroy(&attr);
 
-  dllist_init(&bufsched->mrucache);
-  bufsched->nr_swapout = 10;
-  swapper_init(&bufsched->swapper, bufsched->buffer_size);
-
   return BUFFERING_SUCCESS;
 }
 
@@ -125,14 +103,12 @@ error_code sched_destroy(buffer_scheduler_t *bufsched)
 
   allocator_destroy(&bufsched->allocator);
 
-  swapper_destroy(&bufsched->swapper);
-
   return BUFFERING_SUCCESS;
 }
 
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh)
 {
-  allocator_get(&bufsched->allocator, buffer, bh); // stuck: TODO
+  allocator_get(&bufsched->allocator, buffer, bh);
 
   pthread_mutex_lock(&bufsched->lock);
 
@@ -142,7 +118,7 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf
   // If there are no more free buffers, allocate more. This means we could
   // insert some free buffers into the allocator or call the swapper to freeup
   // some memory if there's no available memory.
-  if (bufsched->nr_free_buffers <= bufsched->min_free_buffers) {
+  if (bufsched->nr_free_buffers == bufsched->min_free_buffers) {
     bufsched->resize_alloc = 1;
     pthread_cond_signal(&bufsched->cond_alloc);
   }
@@ -156,15 +132,11 @@ error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
   allocator_put(&bufsched->allocator, buffer);
 
-  // Remove the buffer from the mru cache if it exists
-  mrucache_remove(bufsched, buffer);
-
   pthread_mutex_lock(&bufsched->lock);
 
   bufsched->nr_assigned_buffers--;
   bufsched->nr_free_buffers++;
 
-  // TODO: async swapin buffers
   // Release some memory, there are too many free buffers allocated
   if (bufsched->nr_free_buffers == bufsched->max_free_buffers) {
     bufsched->shrink_alloc = 1;
@@ -174,61 +146,5 @@ error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
   pthread_mutex_unlock(&bufsched->lock);
 
   return BUFFERING_SUCCESS;
-}
-
-void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf)
-{
-  mrucache_put(bufsched, buf);
-}
-
-void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf)
-{
-  // Allow the swapin operation to drop the free_buffers count below the window limit
-  uint8_t memory_full = 0;
-  pthread_mutex_lock(&bufsched->lock);
-  if (bufsched->nr_free_buffers == 0) {
-    memory_full = 1;
-  }
-  pthread_mutex_unlock(&bufsched->lock);
-
-  if (memory_full) {
-    cls_buf_t *mru = NULL;
-    mrucache_get(bufsched, &mru);
-
-    swapper_swapout(&bufsched->swapper, mru);
-
-    allocator_move(&bufsched->allocator, buf, mru);
-  } else {
-    pthread_mutex_lock(&bufsched->lock);
-    bufsched->nr_free_buffers--;
-    bufsched->nr_assigned_buffers++;
-    pthread_mutex_unlock(&bufsched->lock);
-
-    allocator_move_from_free(&bufsched->allocator, buf);
-  }
-
-  swapper_swapin(&bufsched->swapper, buf);
-}
-
-static inline void mrucache_put(buffer_scheduler_t *bufsched, cls_buf_t *buf)
-{
-  pthread_mutex_lock(&bufsched->lock);
-  dllist_iah(&bufsched->mrucache, &buf->link_mru);
-  pthread_mutex_unlock(&bufsched->lock);
-}
-
-static inline void mrucache_get(buffer_scheduler_t *bufsched, cls_buf_t **buf)
-{
-  pthread_mutex_lock(&bufsched->lock);
-  dllist_link *tmp = dllist_rem_head(&bufsched->mrucache);
-  *buf = DLLIST_ELEMENT(tmp, cls_buf_t, link_mru);
-  pthread_mutex_unlock(&bufsched->lock);
-}
-
-static inline void mrucache_remove(buffer_scheduler_t *bufsched, cls_buf_t *buf)
-{
-  pthread_mutex_lock(&bufsched->lock);
-  dllist_rem(&bufsched->mrucache, &buf->link_mru);
-  pthread_mutex_unlock(&bufsched->lock);
 }
 

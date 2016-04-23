@@ -5,7 +5,9 @@
 #include "errors.h"
 #include "uthash.h"
 #include "list.h"
-#include "buffering_types.h"
+
+typedef struct _cls_buf cls_buf_t;
+typedef struct _cls_buf_handle  cls_buf_handle_t;
 
 typedef struct
 {
@@ -40,12 +42,6 @@ error_code allocator_shrink(buffer_allocator_t *allocator, uint64_t count);
 error_code allocator_new(buffer_allocator_t *allocator, uint64_t count);
 
 error_code allocator_destroy(buffer_allocator_t *allocator);
-
-error_code allocator_move_from_free(buffer_allocator_t *allocator, cls_buf_t *buf);
-
-error_code allocator_move_to_free(buffer_allocator_t *allocator, cls_buf_t *buf);
-
-error_code allocator_move(buffer_allocator_t *allocator, cls_buf_t *dest, cls_buf_t *src);
 
 void copy_buf_handle(cls_buf_handle_t *dest, cls_buf_handle_t *src);
 

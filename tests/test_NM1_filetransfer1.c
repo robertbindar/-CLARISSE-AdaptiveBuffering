@@ -67,7 +67,7 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   }
 
   double end_time = MPI_Wtime();
-  fprintf(stderr, "=================Producer %d time: %lf============%d\n", rank, end_time - start_time, handle.offset);
+  fprintf(stderr, "=================Producer %d time: %lf============\n", rank, end_time - start_time);
 
   munmap(file_addr, file_size);
   close(fd);

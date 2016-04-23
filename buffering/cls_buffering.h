@@ -3,6 +3,20 @@
 #pragma once
 
 #include "buffering_types.h"
+#include "buffer_scheduler.h"
+
+typedef struct
+{
+  buffer_scheduler_t buf_sched;
+
+  cls_size_t buffer_size;
+
+  pthread_mutex_t lock;
+  cls_buf_t *buffers;
+
+  cls_size_t buffers_count;
+} cls_buffering_t;
+
 #include "errors.h"
 
 #if defined (__cplusplus)

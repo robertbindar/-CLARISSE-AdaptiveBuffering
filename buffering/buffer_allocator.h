@@ -21,10 +21,18 @@ typedef struct
   uint64_t buffer_size;
 } buffer_allocator_t;
 
+typedef struct
+{
+  char *data;
+  dllist_link link;
+} mem_entry_t;
+
 error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size);
 
 // Assigns a free buffer to *buffer
-error_code allocator_get(buffer_allocator_t *allocator, cls_buf_t **buffer, cls_buf_handle_t bh);
+error_code allocator_get(buffer_allocator_t *allocator, cls_buf_t *buffer);
+
+error_code allocator_get_md(buffer_allocator_t *allocator, cls_buf_t **buffer, cls_buf_handle_t bh);
 
 // Inserts a free buffer into the pool.
 // A common use-case is to fetch a buffer, use it, then put it back into the
@@ -40,8 +48,6 @@ error_code allocator_shrink(buffer_allocator_t *allocator, uint64_t count);
 error_code allocator_new(buffer_allocator_t *allocator, uint64_t count);
 
 error_code allocator_destroy(buffer_allocator_t *allocator);
-
-error_code allocator_move_from_free(buffer_allocator_t *allocator, cls_buf_t *buf);
 
 error_code allocator_move_to_free(buffer_allocator_t *allocator, cls_buf_t *buf);
 

@@ -29,19 +29,27 @@ typedef struct _buffer_scheduler
 
   pthread_mutex_t lock;
 
-  uint8_t resize_alloc;
-  uint8_t shrink_alloc;
+  pthread_t worker_alloc_tid;
+  uint8_t async_expand;
+  uint8_t async_shrink;
+  uint8_t async_cancel;
+  uint64_t async_swapout;
   pthread_cond_t cond_alloc;
+
+  pthread_cond_t free_buffers_available;
 
   dllist mrucache;
 } buffer_scheduler_t;
 
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size, uint64_t max_pool_size);
 error_code sched_destroy(buffer_scheduler_t *bufsched);
-error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh);
+error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
+error_code sched_alloc_md(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh);
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
 
 void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf);
+
+uint8_t sched_mark_consumed(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
 void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 

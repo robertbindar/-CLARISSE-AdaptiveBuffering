@@ -30,11 +30,8 @@ typedef struct _cls_buf
 
   uint32_t nr_consumers_finished;
 
-  dllist_link link_alloc;
-  UT_hash_handle hh_alloc;
-
   uint8_t is_swapped;
-  uint8_t consumers_finished;
+  uint8_t freed_by_swapper;
   pthread_rwlock_t rwlock_swap;
   dllist_link link_mru;
 

@@ -55,7 +55,7 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
   if (!found) {
     // Request a buffer from the scheduler
-    sched_alloc(&bufservice->buf_sched, &found, bh);
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
 
     // Add newly allocated buffer to hash
     HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
@@ -63,19 +63,14 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
 
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
+  pthread_rwlock_rdlock(&found->rwlock_swap);
+
   // Wait until the buffer is written by producers
   HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
   while (!found->ready) {
     pthread_cond_wait(&found->buf_ready, &found->lock_read);
   }
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
 
-  uint8_t last_consumer = 0;
-
-  // TODO: find a policy to give incoming consumers a higher priority than the swapper
-  pthread_rwlock_rdlock(&found->rwlock_swap);
-
-  pthread_mutex_lock(&found->lock_read);
   if (found->is_swapped) {
     sched_swapin(&bufservice->buf_sched, found);
   }
@@ -86,23 +81,28 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
 
   pthread_mutex_lock(&found->lock_read);
   found->nr_consumers_finished++;
-  if (found->nr_consumers_finished == nr_consumers) {
-    last_consumer = 1;
-    found->consumers_finished = 1;
-  }
-  pthread_mutex_unlock(&found->lock_read);
-
-  pthread_rwlock_unlock(&found->rwlock_swap);
 
   // The last consumer that finished reading will release the buffer
-  if (last_consumer) {
-    HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR); // stuck
-
+  if (found->nr_consumers_finished == nr_consumers) {
+    HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
     HASH_DEL(bufservice->buffers, found);
-    sched_free(&bufservice->buf_sched, found);
-
     HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+    if (sched_mark_consumed(&bufservice->buf_sched, found)) {
+      pthread_mutex_unlock(&found->lock_read);
+      pthread_rwlock_unlock(&found->rwlock_swap);
+
+      sched_free(&bufservice->buf_sched, found);
+
+      return BUFFERING_SUCCESS;
+    }
+
+    found->freed_by_swapper = 1;
   }
+
+  // Unlock rwlock first, avoid race
+  pthread_rwlock_unlock(&found->rwlock_swap);
+  pthread_mutex_unlock(&found->lock_read);
 
   return BUFFERING_SUCCESS;
 }
@@ -123,28 +123,33 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
   if (!found) {
     // Request a buffer from the scheduler
-    sched_alloc(&bufservice->buf_sched, &found, bh);
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
 
     // Add newly allocated buffer to hash
     HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
   }
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
+  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  if (!found->data) {
+    sched_alloc(&bufservice->buf_sched, found);
+  }
+
   // Write the data to buffer
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_write), BUFSERVICE_LOCK_ERR);
   memcpy(found->data + offset, data, count);
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_write), BUFSERVICE_LOCK_ERR);
 
   // Mark the buffer as being ready to be read
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
   found->ready++;
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
-
-  // Tell the scheduler this buffer is written by all the participants
-  sched_mark_updated(&bufservice->buf_sched, found);
 
   // Notify any waiting consumer
   pthread_cond_broadcast(&found->buf_ready);
+
+  // Tell the scheduler this buffer is written by all the participants.
+  // Telling the consumers first about the buffer, might give them a chance to
+  // read it before an eventual swapout might occur.
+  sched_mark_updated(&bufservice->buf_sched, found);
+
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
 }
@@ -166,7 +171,7 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
   HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
   if (!found) {
     // Request a buffer from the scheduler
-    sched_alloc(&bufservice->buf_sched, &found, bh);
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
 
     // Add newly allocated buffer to hash
     HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
@@ -174,29 +179,27 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
 
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
+  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  if (!found->data) {
+    sched_alloc(&bufservice->buf_sched, found);
+  }
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+
   // Write the data to buffer
   memcpy(found->data + offset, data, count);
 
-  uint8_t buffer_written = 0;
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_write), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
   found->nr_coll_participants++;
   if (found->nr_coll_participants == nr_participants) {
     // Mark the buffer as being ready to be read
-    HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
     found->ready++;
-    HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
-
-    buffer_written = 1;
 
     // Notify any waiting consumer
     pthread_cond_broadcast(&found->buf_ready);
-  }
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_write), BUFSERVICE_LOCK_ERR);
 
-  // Tell the scheduler this buffer is written by all the participants
-  if (buffer_written) {
     sched_mark_updated(&bufservice->buf_sched, found);
   }
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
 }

@@ -17,8 +17,8 @@ cp simulation/*.h $INCLUDE
 make -C buffering/
 mv buffering/libbuffering.so $BINARIES
 
-make -C simulation/
-mv simulation/producer_consumer_decoupling $BINARIES
+#make -C simulation/
+#mv simulation/producer_consumer_decoupling $BINARIES
 
 make -C buffering/tests/
 

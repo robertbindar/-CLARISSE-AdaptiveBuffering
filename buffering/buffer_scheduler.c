@@ -34,9 +34,9 @@ static void *stretch_allocator(void *arg)
       bufsched->async_shrink = 0;
       pthread_mutex_unlock(&bufsched->lock);
 
-      uint64_t k = swapin_buffers(bufsched, count);
+      /*uint64_t k = swapin_buffers(bufsched, count);*/
 
-      count -= k;
+      /*count -= k;*/
       shrink_alloc(bufsched, count);
 
       bufsched->capacity -= count;

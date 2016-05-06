@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -g -Wall -std=gnu99 -I ../include
+CFLAGS = -g -Wall -std=gnu99 -I ../include -O2
 LDFLAGS = -lpthread
 EXEC = libbuffering.so
 

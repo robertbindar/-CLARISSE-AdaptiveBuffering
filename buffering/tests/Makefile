@@ -1,5 +1,5 @@
 CC = clang++-3.6
-CFLAGS = -g -Wall -I ../../include -std=c++11
+CFLAGS = -g -Wall -I ../../include -std=c++14 -O2
 LDFLAGS = -L../../bin/ -lpthread -lbuffering
 EXEC = test1 test2
 

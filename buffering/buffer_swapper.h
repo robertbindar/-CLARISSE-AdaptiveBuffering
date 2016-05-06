@@ -42,5 +42,7 @@ cls_buf_t *swapper_top(buffer_swapper_t *sw);
 
 uint64_t swapper_getcount(buffer_swapper_t *sw);
 
+uint8_t swapper_find(buffer_swapper_t *sw, cls_buf_t *buf);
+
 void swapper_destroy(buffer_swapper_t *sw);
 

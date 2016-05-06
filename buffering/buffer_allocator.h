@@ -12,10 +12,6 @@ typedef struct
   // Tracks the buffers that are available to be fetched from the library
   dllist free_buffers;
 
-  pthread_mutex_t lock;
-
-  pthread_cond_t free_buffer_available;
-
   // All the allocated buffers have a fixed size established when calling
   // allocator_init
   uint64_t buffer_size;

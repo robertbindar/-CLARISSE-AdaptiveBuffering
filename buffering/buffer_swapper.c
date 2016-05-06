@@ -51,6 +51,20 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
   close(fd);
 }
 
+uint8_t swapper_find(buffer_swapper_t *sw, cls_buf_t *buf)
+{
+  pthread_mutex_lock(&sw->lock);
+
+  swap_entry_t *found;
+  HASH_FIND_PTR(sw->entries, &buf, found);
+
+  uint8_t result = (found != NULL);
+
+  pthread_mutex_unlock(&sw->lock);
+
+  return result;
+}
+
 cls_buf_t *swapper_top(buffer_swapper_t *sw)
 {
   pthread_mutex_lock(&sw->lock);

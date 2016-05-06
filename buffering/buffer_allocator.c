@@ -8,10 +8,6 @@ error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size)
   dllist_init(&allocator->free_buffers);
   allocator->buffer_size = buf_size;
 
-  /*pthread_cond_init(&allocator->free_buffer_available, NULL);*/
-
-  /*pthread_mutex_init(&allocator->lock, NULL);*/
-
   return BUFFERING_SUCCESS;
 }
 
@@ -30,6 +26,7 @@ static void init_buf_fields(cls_buf_t *buffer)
   buffer->nr_consumers_finished = 0;
   buffer->ready = 0;
   buffer->is_swapped = 0;
+  buffer->was_swapped_in = 0;
   buffer->freed_by_swapper = 0;
   buffer->data = NULL;
   buffer->link_mru.next = NULL;
@@ -70,15 +67,7 @@ static void release_buf_md(cls_buf_t *buff)
 
 error_code allocator_get(buffer_allocator_t *allocator, cls_buf_t *buffer)
 {
-  /*pthread_mutex_lock(&allocator->lock);*/
-
-  /*while (dllist_is_empty(&allocator->free_buffers)) {*/
-    /*pthread_cond_wait(&allocator->free_buffer_available, &allocator->lock);*/
-  /*}*/
-
   dllist_link *tmp = dllist_rem_head(&allocator->free_buffers);
-
-  /*pthread_mutex_unlock(&allocator->lock);*/
 
   mem_entry_t *b = DLLIST_ELEMENT(tmp, mem_entry_t, link);
 
@@ -105,13 +94,10 @@ error_code allocator_put(buffer_allocator_t *allocator, cls_buf_t *buffer)
   m->link.prev = m->link.next = NULL;
   m->data = buffer->data;
   buffer->data = NULL;
-  // TODO: fix race 2
+
   release_buf_md(buffer);
 
-  /*pthread_mutex_lock(&allocator->lock);*/
   dllist_iat(&allocator->free_buffers, &m->link);
-  /*pthread_cond_broadcast(&allocator->free_buffer_available);*/
-  /*pthread_mutex_unlock(&allocator->lock);*/
 
   return BUFFERING_SUCCESS;
 }
@@ -119,9 +105,7 @@ error_code allocator_put(buffer_allocator_t *allocator, cls_buf_t *buffer)
 error_code allocator_shrink(buffer_allocator_t *allocator, uint64_t count)
 {
   while (count > 0) {
-    /*pthread_mutex_lock(&allocator->lock);*/
     dllist_link *tmp = dllist_rem_head(&allocator->free_buffers);
-    /*pthread_mutex_unlock(&allocator->lock);*/
 
     mem_entry_t *m = DLLIST_ELEMENT(tmp, mem_entry_t, link);
     free(m->data);
@@ -143,10 +127,7 @@ error_code allocator_new(buffer_allocator_t *allocator, uint64_t count)
       return BUFALLOCATOR_BAD_ALLOC;
     }
 
-    /*pthread_mutex_lock(&allocator->lock);*/
     dllist_iat(&allocator->free_buffers, &m->link);
-    /*pthread_cond_broadcast(&allocator->free_buffer_available);*/
-    /*pthread_mutex_unlock(&allocator->lock);*/
 
     --count;
   }
@@ -165,11 +146,7 @@ error_code allocator_move_to_free(buffer_allocator_t *allocator, cls_buf_t *buf)
   m->data = buf->data;
   buf->data = NULL;
 
-  /*pthread_mutex_lock(&allocator->lock);*/
   dllist_iat(&allocator->free_buffers, &m->link);
-  /*pthread_cond_broadcast(&allocator->free_buffer_available);*/
-  /*pthread_mutex_unlock(&allocator->lock);*/
-
 
   return BUFFERING_SUCCESS;
 }
@@ -190,9 +167,6 @@ error_code allocator_destroy(buffer_allocator_t *allocator)
     free(b->data);
     free(b);
   }
-
-  /*pthread_mutex_destroy(&allocator->lock);*/
-  /*pthread_cond_destroy(&allocator->free_buffer_available);*/
 
   return BUFFERING_SUCCESS;
 }

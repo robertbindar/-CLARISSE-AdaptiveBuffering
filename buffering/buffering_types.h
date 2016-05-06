@@ -32,6 +32,7 @@ typedef struct _cls_buf
 
   uint8_t is_swapped;
   uint8_t freed_by_swapper;
+  uint8_t was_swapped_in;
   pthread_rwlock_t rwlock_swap;
   dllist_link link_mru;
 

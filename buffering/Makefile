@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -g -Wall -std=gnu99 -I ../include
-LDFLAGS = -lpthread
+CFLAGS = -g -Wall -std=gnu99 -I ../include -fsanitize=thread
+LDFLAGS = -lpthread -fsanitize=thread
 EXEC = libbuffering.so
 
 

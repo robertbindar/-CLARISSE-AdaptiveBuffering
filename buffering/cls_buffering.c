@@ -88,7 +88,7 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
     HASH_DEL(bufservice->buffers, found);
     HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-    if (sched_mark_consumed(&bufservice->buf_sched, found)) {
+    if (sched_mark_consumed(&bufservice->buf_sched, found) || found->was_swapped_in) {
       pthread_mutex_unlock(&found->lock_read);
       pthread_rwlock_unlock(&found->rwlock_swap);
 

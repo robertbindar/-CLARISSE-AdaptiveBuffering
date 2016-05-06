@@ -1,6 +1,6 @@
 CC = clang++-3.6
-CFLAGS = -g -Wall -I ../../include -std=c++11
-LDFLAGS = -L../../bin/ -lpthread -lbuffering
+CFLAGS = -g -Wall -I ../../include -std=c++11 -fsanitize=thread
+LDFLAGS = -L../../bin/ -lpthread -lbuffering -fsanitize=thread
 EXEC = test1 test2
 
 all: $(EXEC)

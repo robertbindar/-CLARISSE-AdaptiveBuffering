@@ -196,7 +196,7 @@ int main(int argc, char **argv)
     uint32_t nr_producers = atoi(argv[1]);
     uint32_t nr_consumers = atoi(argv[2]);
 
-    uint32_t bufsize = 1024000;
+    uint32_t bufsize = 10240;
     uint32_t max_pool_size = 4096;
 
     int32_t fd = open("input", O_RDONLY);
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
     close(fd);
 
     cls_buffering_t bufservice;
-    cls_init_buffering(&bufservice, bufsize, nrbufs / 2);
+    cls_init_buffering(&bufservice, bufsize, nrbufs / 4);
 
     vector<std::thread> workers;
 

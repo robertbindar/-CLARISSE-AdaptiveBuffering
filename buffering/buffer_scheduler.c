@@ -60,7 +60,7 @@ void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf)
 
 uint8_t sched_mark_consumed(buffer_scheduler_t *bufsched, cls_buf_t *buf)
 {
-  return 0;
+  return 1;
 }
 
 void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf)

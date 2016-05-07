@@ -68,6 +68,10 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
 
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
+
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
   // Check whether the requested buffer is allocated or not.
@@ -136,6 +140,10 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
 
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
+
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
   // Check whether the requested buffer is allocated or not.
@@ -148,10 +156,6 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
     HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
   }
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
-
-#ifdef _BENCHMARKING
-  get_counters(bufservice);
-#endif
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
   if (!found->data) {
@@ -188,6 +192,10 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
 
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
+
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
   // Check whether the requested buffer is allocated or not.
@@ -201,10 +209,6 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
   }
 
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
-
-#ifdef _BENCHMARKING
-  get_counters(bufservice);
-#endif
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
   if (!found->data) {

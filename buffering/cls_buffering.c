@@ -11,7 +11,7 @@
 
 #ifdef _BENCHMARKING
 
-#define FILENAME "benchmarking_nosched"
+#define FILENAME "benchmarking_ondemand"
 void get_counters(cls_buffering_t *bufservice)
 {
   uint64_t bufs_count = 0;

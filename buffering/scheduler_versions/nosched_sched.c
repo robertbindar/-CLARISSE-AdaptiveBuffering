@@ -14,7 +14,7 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
 
   allocator_init(&bufsched->allocator, buffer_size);
 
-  bufsched->nr_free_buffers = 0;
+  bufsched->nr_free_buffers = max_pool_size;
 
   return BUFFERING_SUCCESS;
 }
@@ -28,11 +28,15 @@ error_code sched_destroy(buffer_scheduler_t *bufsched)
   return BUFFERING_SUCCESS;
 }
 
+static int init = 0;
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
   HANDLE_ERR(pthread_mutex_lock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
-  buffer->data = malloc(bufsched->buffer_size);
-  bufsched->nr_assigned_buffers++;
+  if (init == 0) {
+    allocator_new(&bufsched->allocator, bufsched->max_pool_size);
+    init = 1;
+  }
+  allocator_get(&bufsched->allocator, buffer);
   HANDLE_ERR(pthread_mutex_unlock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
@@ -41,8 +45,7 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
   HANDLE_ERR(pthread_mutex_lock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
-  free(buffer->data);
-  bufsched->nr_assigned_buffers--;
+  allocator_put(&bufsched->allocator, buffer);
   HANDLE_ERR(pthread_mutex_unlock(&bufsched->lock), BUFSCHEDULER_LOCK_ERR);
 
   return BUFFERING_SUCCESS;

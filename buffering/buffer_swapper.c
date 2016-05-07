@@ -106,6 +106,7 @@ void swapper_swapout_lockfree(buffer_swapper_t *sw, cls_buf_t *buf)
     dllist_link *tmp = dllist_rem_head(&sw->disk_free_offsets);
     free_off_t *f = DLLIST_ELEMENT(tmp, free_off_t, link);
     entry->file_offset = lseek(fd, f->offset, SEEK_SET);
+    free(f);
   } else {
     entry->file_offset = lseek(fd, 0, SEEK_END);
   }
@@ -166,5 +167,7 @@ void swapper_destroy(buffer_swapper_t *sw)
   }
 
   rmdir(sw->dirname);
+
+  closedir(dp);
 }
 

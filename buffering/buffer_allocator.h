@@ -15,6 +15,7 @@ typedef struct
   // All the allocated buffers have a fixed size established when calling
   // allocator_init
   uint64_t buffer_size;
+  pthread_mutex_t lock;
 } buffer_allocator_t;
 
 typedef struct

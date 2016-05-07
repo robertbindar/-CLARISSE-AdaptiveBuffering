@@ -34,6 +34,7 @@ typedef struct _buffer_scheduler
   uint8_t async_shrink;
   uint8_t async_cancel;
   uint64_t async_swapout;
+  pthread_mutex_t lock_worker;
   pthread_cond_t cond_alloc;
 
   pthread_cond_t free_buffers_available;

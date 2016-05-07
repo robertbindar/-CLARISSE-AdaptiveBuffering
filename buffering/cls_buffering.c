@@ -3,8 +3,27 @@
 #include "cls_buffering.h"
 #include "buffer_scheduler.h"
 #include <assert.h>
-#include <stdio.h>
 #include <inttypes.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#define _BENCHMARKING
+
+#ifdef _BENCHMARKING
+
+#define FILENAME "benchmarking_swapping"
+void get_counters(cls_buffering_t *bufservice)
+{
+  uint64_t bufs_count = 0;
+  FILE *out = fopen(FILENAME, "a+");
+  pthread_mutex_lock(&(bufservice->buf_sched.lock));
+  bufs_count = bufservice->buf_sched.nr_free_buffers +
+               bufservice->buf_sched.nr_assigned_buffers;
+  fprintf(out, "%" PRIu64 "\n", bufs_count);
+  pthread_mutex_unlock(&(bufservice->buf_sched.lock));
+  fclose(out);
+}
+#endif
 
 error_code cls_init_buffering(cls_buffering_t *bufservice, cls_size_t bsize,
                               cls_size_t max_elems)
@@ -48,6 +67,10 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
 
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
+
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
 
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
@@ -117,6 +140,10 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
 
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
+
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
   // Check whether the requested buffer is allocated or not.
@@ -164,6 +191,10 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
 
   cls_buf_handle_t bh;
   copy_buf_handle(&bh, &buf_handle);
+
+#ifdef _BENCHMARKING
+  get_counters(bufservice);
+#endif
 
   HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 

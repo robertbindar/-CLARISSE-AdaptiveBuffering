@@ -31,7 +31,7 @@ static void *stretch_allocator(void *arg)
       bufsched->async_shrink = 0;
 
       pthread_mutex_lock(&bufsched->lock);
-      uint64_t count = bufsched->nr_free_buffers / 2;
+      uint64_t count = bufsched->nr_free_buffers / 4;
       pthread_mutex_unlock(&bufsched->lock);
 
       /*uint64_t k = swapin_buffers(bufsched, count);*/
@@ -44,16 +44,24 @@ static void *stretch_allocator(void *arg)
       bufsched->async_expand = 0;
 
       pthread_mutex_lock(&bufsched->lock);
+
       uint64_t count = bufsched->max_pool_size - bufsched->nr_free_buffers - bufsched->nr_assigned_buffers;
-      if (count > bufsched->capacity) {
-        count = bufsched->capacity;
-        bufsched->capacity = bufsched->capacity * 2;
-      } else if (count > bufsched->max_free_buffers) {
-        count = bufsched->max_free_buffers - 1;
-        bufsched->capacity += count;
-      } else {
-        bufsched->capacity += count;
+
+      if (count > bufsched->capacity / 4) {
+        count = bufsched->capacity / 4;
       }
+      if (count > bufsched->max_free_buffers - bufsched->nr_free_buffers) {
+        count = bufsched->max_free_buffers - bufsched->nr_free_buffers;
+      }
+      /*if (count > bufsched->capacity / 4) {*/
+        /*count = bufsched->capacity / 4;*/
+        /*bufsched->capacity += count;*/
+      /*} else if (count > bufsched->max_free_buffers) {*/
+        /*count = bufsched->max_free_buffers - 1;*/
+        /*bufsched->capacity += count;*/
+      /*} else {*/
+        /*bufsched->capacity += count;*/
+      /*}*/
       pthread_mutex_unlock(&bufsched->lock);
 
       expand_alloc(bufsched, count);

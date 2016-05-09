@@ -53,15 +53,6 @@ static void *stretch_allocator(void *arg)
       if (count > bufsched->max_free_buffers - bufsched->nr_free_buffers) {
         count = bufsched->max_free_buffers - bufsched->nr_free_buffers;
       }
-      /*if (count > bufsched->capacity / 4) {*/
-        /*count = bufsched->capacity / 4;*/
-        /*bufsched->capacity += count;*/
-      /*} else if (count > bufsched->max_free_buffers) {*/
-        /*count = bufsched->max_free_buffers - 1;*/
-        /*bufsched->capacity += count;*/
-      /*} else {*/
-        /*bufsched->capacity += count;*/
-      /*}*/
       pthread_mutex_unlock(&bufsched->lock);
 
       expand_alloc(bufsched, count);

@@ -42,12 +42,12 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         chunk = nrbufs - chunk * (nprod - 1);
     }
 
-    auto start_time = steady_clock::now();
-
+    auto elapsed_time = milliseconds::zero();
     uint32_t i = 0;
     cls_buf_handle_t handle;
     handle.global_descr = 0;
 
+    char *buf = new char[bufsize];
     while (i < chunk) {
         handle.offset = (begin + i) * bufsize;
 
@@ -57,24 +57,27 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         } else {
             count = bufsize;
         }
+        std::copy(file_addr + (begin + i) * bufsize, file_addr + (begin + i) * bufsize + count, buf);
 
-        cls_put(bufservice, handle, 0, file_addr + (begin + i) * bufsize, count);
+        auto start_time = steady_clock::now();
+        cls_put(bufservice, handle, 0, buf, count);
+        auto end_time = steady_clock::now();
+
+        elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
         ++i;
     }
+    delete [] buf;
 
-    auto end_time = steady_clock::now();
 
     static auto avg_time = milliseconds::zero();
     static auto min_time = milliseconds::max();
     static auto max_time = milliseconds::zero();
 
-    auto elapsed_time = duration_cast<milliseconds>(end_time - start_time);
-
     {
         std::lock_guard<mutex> guard(g_lock);
 
-        avg_time += duration_cast<milliseconds>(end_time - start_time);
+        avg_time += duration_cast<milliseconds>(elapsed_time);
         min_time = min(min_time, elapsed_time);
         max_time = max(max_time, elapsed_time);
 
@@ -109,12 +112,13 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
 
     uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
 
-    auto start_time = steady_clock::now();
+    auto elapsed_time = milliseconds::zero();
 
     uint32_t i = 0;
     cls_buf_handle_t handle;
     handle.global_descr = 0;
 
+    char *data = new char[bufsize];
     while (i < nrbufs) {
         handle.offset = i * bufsize;
 
@@ -125,27 +129,27 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
             count = bufsize;
         }
 
-        char *data = new char[bufsize];
+        auto start_time = steady_clock::now();
         cls_get(bufservice, handle, 0, data, count, ncons);
+        auto end_time = steady_clock::now();
+
+        elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
         lseek(fd, i * bufsize, SEEK_SET);
         write(fd, data, count);
         ++i;
-        delete [] data;
     }
+    delete [] data;
 
-    auto end_time = steady_clock::now();
-close(fd);
+    close(fd);
 
     static auto avg_time = milliseconds::zero();
     static auto min_time = milliseconds::max();
     static auto max_time = milliseconds::zero();
 
-    auto elapsed_time = duration_cast<milliseconds>(end_time - start_time);
-
     std::lock_guard<mutex> guard(g_lock);
 
-    avg_time += duration_cast<milliseconds>(end_time - start_time);
+    avg_time += duration_cast<milliseconds>(elapsed_time);
     min_time = min(min_time, elapsed_time);
     max_time = max(max_time, elapsed_time);
 
@@ -196,7 +200,7 @@ int main(int argc, char **argv)
     uint32_t nr_producers = atoi(argv[1]);
     uint32_t nr_consumers = atoi(argv[2]);
 
-    uint32_t bufsize = 102400;
+    uint32_t bufsize = 1024;
 
     int32_t fd = open("input", O_RDONLY);
     struct stat finfo;

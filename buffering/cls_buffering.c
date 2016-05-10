@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define _BENCHMARKING
+/*#define _BENCHMARKING*/
 
 #ifdef _BENCHMARKING
 

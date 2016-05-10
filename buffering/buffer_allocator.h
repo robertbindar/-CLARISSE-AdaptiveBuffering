@@ -2,55 +2,29 @@
 
 #include <stdint.h>
 #include <pthread.h>
-#include "errors.h"
-#include "uthash.h"
-#include "list.h"
-#include "buffering_types.h"
+#include "chunk_pool.h"
 
 typedef struct
 {
-  // Tracks the buffers that are available to be fetched from the library
-  dllist free_buffers;
+  uint32_t block_size;
+  uint32_t nr_blocks;
 
-  // All the allocated buffers have a fixed size established when calling
-  // allocator_init
-  uint64_t buffer_size;
+  dllist chunks;
+  uint32_t chunks_count;
+  dllist_link *alloc_chunk;
+
   pthread_mutex_t lock;
-} buffer_allocator_t;
+} allocator_t;
 
-typedef struct
-{
-  char *data;
-  dllist_link link;
-} mem_entry_t;
+void allocator_init(allocator_t *allocator, uint32_t block_size, uint32_t nr_blocks);
 
-error_code allocator_init(buffer_allocator_t *allocator, uint64_t buf_size);
+void* allocator_alloc(allocator_t *allocator);
 
-// Assigns a free buffer to *buffer
-error_code allocator_get(buffer_allocator_t *allocator, cls_buf_t *buffer);
+void allocator_dealloc(allocator_t *allocator, void *p);
 
-error_code allocator_get_md(buffer_allocator_t *allocator, cls_buf_t **buffer, cls_buf_handle_t bh);
+uint32_t allocator_shrink(allocator_t *allocator);
 
-// Inserts a free buffer into the pool.
-// A common use-case is to fetch a buffer, use it, then put it back into the
-// pool.
-error_code allocator_put(buffer_allocator_t *allocator, cls_buf_t *buffer);
+uint32_t allocator_expand(allocator_t *allocator);
 
-// Deletes "count" free buffers from the library. It might be used to free-up
-// memory when the number of free buffers exceeds a specific threshold.
-error_code allocator_shrink(buffer_allocator_t *allocator, uint64_t count);
-
-// Allocates "count" free buffers. A common use-case is to increase the number
-// of free buffers when it drops below an established threshold.
-error_code allocator_new(buffer_allocator_t *allocator, uint64_t count);
-
-error_code allocator_destroy(buffer_allocator_t *allocator);
-
-error_code allocator_move_to_free(buffer_allocator_t *allocator, cls_buf_t *buf);
-
-error_code allocator_move(buffer_allocator_t *allocator, cls_buf_t *dest, cls_buf_t *src);
-
-void copy_buf_handle(cls_buf_handle_t *dest, cls_buf_handle_t *src);
-
-void destroy_buffer(cls_buf_t *buff);
+void allocator_destroy(allocator_t *allocator);
 

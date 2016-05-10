@@ -10,7 +10,9 @@
 
 typedef struct _buffer_scheduler
 {
-  buffer_allocator_t allocator;
+  allocator_t allocator_data;
+  allocator_t allocator_md;
+
   buffer_swapper_t swapper;
 
   uint64_t capacity;
@@ -53,4 +55,8 @@ void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 uint8_t sched_mark_consumed(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
 void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf);
+
+void copy_buf_handle(cls_buf_handle_t *dest, cls_buf_handle_t *src);
+
+void destroy_buffer(cls_buf_t *buff);
 

@@ -69,6 +69,11 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         cls_put(bufservice, handle, 0, buf, count);
         auto end_time = steady_clock::now();
 
+        {
+            std::lock_guard<mutex> guard(g_lock);
+            print_counters(bufservice);
+        }
+
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
         ++i;
@@ -138,6 +143,11 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         auto start_time = steady_clock::now();
         cls_get(bufservice, handle, 0, data, count, ncons);
         auto end_time = steady_clock::now();
+
+        {
+            std::lock_guard<mutex> guard(g_lock);
+            print_counters(bufservice);
+        }
 
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
@@ -235,17 +245,17 @@ int main(int argc, char **argv)
     }
 
 #ifdef _BENCHMARKING
-    while (true) {
-        {
-            std::lock_guard<mutex> guard(g_lock);
-            if (nr_consumers_finished + nr_producers_finished == nr_consumers + nr_producers) {
-                break;
-            }
-        }
+    //while (true) {
+        //{
+            //std::lock_guard<mutex> guard(g_lock);
+            //if (nr_consumers_finished + nr_producers_finished == nr_consumers + nr_producers) {
+                //break;
+            //}
+        //}
 
-        print_counters(&bufservice, nr_consumers, nr_producers);
-        std::this_thread::sleep_for(1ms);
-    }
+        //print_counters(&bufservice, nr_consumers, nr_producers);
+        //std::this_thread::sleep_for(1ms);
+    //}
 #endif
 
     for (auto &t : workers) {
@@ -253,6 +263,10 @@ int main(int argc, char **argv)
     }
 
     cls_destroy_buffering(&bufservice);
+
+#ifdef _BENCHMARKING
+    destroy_benchmarking();
+#endif
 
     return 0;
 }

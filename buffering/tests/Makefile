@@ -1,4 +1,4 @@
-CC = clang++-3.6
+CC = clang++-3.5
 CFLAGS = -g -Wall -I ../../include -std=c++14 -O3
 LDFLAGS = -L../../bin/ -lpthread -lbuffering -O3
 EXEC = test1 test2

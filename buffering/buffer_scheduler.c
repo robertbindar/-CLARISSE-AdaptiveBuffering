@@ -35,7 +35,6 @@ static void init_buffer(cls_buf_t *buffer)
 {
   init_buf_fields(buffer);
 
-  pthread_mutex_init(&buffer->lock_write, NULL);
   pthread_mutex_init(&buffer->lock_read, NULL);
   pthread_rwlock_init(&buffer->rwlock_swap, NULL);
   pthread_cond_init(&buffer->buf_ready, NULL);
@@ -44,7 +43,6 @@ static void init_buffer(cls_buf_t *buffer)
 void destroy_buffer(cls_buf_t *buff)
 {
   pthread_cond_destroy(&buff->buf_ready);
-  pthread_mutex_destroy(&buff->lock_write);
   pthread_mutex_destroy(&buff->lock_read);
   pthread_rwlock_destroy(&buff->rwlock_swap);
 }
@@ -95,8 +93,6 @@ static void *stretch_allocator(void *arg)
       bufsched->nr_free_buffers += count;
       pthread_cond_broadcast(&bufsched->free_buffers_available);
       pthread_mutex_unlock(&bufsched->lock);
-
-      /*expand_alloc(bufsched, count);*/
 
     } else {
       bufsched->async_swapout--;

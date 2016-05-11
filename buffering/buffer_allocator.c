@@ -63,6 +63,7 @@ void allocator_dealloc(allocator_t *allocator, void *p)
 uint32_t allocator_shrink(allocator_t *allocator)
 {
   uint32_t count = 0;
+
   pthread_mutex_lock(&allocator->lock);
   dllist_link *l = allocator->chunks.tail;
   uint32_t nr_blocks = allocator->nr_blocks;
@@ -73,13 +74,19 @@ uint32_t allocator_shrink(allocator_t *allocator)
       break;
     }
 
+    dllist_link *pl = l->prev;
+
+    allocator->chunks_count--;
+
     dllist_rem(&allocator->chunks, l);
-    l = l->prev;
+
+    pthread_mutex_unlock(&allocator->lock);
+    l = pl;
 
     chunk_destroy(tmp);
     free(tmp);
     count += nr_blocks;
-    allocator->chunks_count--;
+    pthread_mutex_lock(&allocator->lock);
   }
   pthread_mutex_unlock(&allocator->lock);
 
@@ -88,11 +95,10 @@ uint32_t allocator_shrink(allocator_t *allocator)
 
 uint32_t allocator_expand(allocator_t *allocator)
 {
-  pthread_mutex_lock(&allocator->lock);
-
   chunk_t *c = malloc(sizeof(chunk_t));
   chunk_init(c, allocator->nr_blocks, allocator->block_size);
 
+  pthread_mutex_lock(&allocator->lock);
   chunk_t *tail = DLLIST_ELEMENT(allocator->chunks.tail, chunk_t, link);
   if (allocator->chunks.tail == NULL || chunk_empty(tail)) {
     allocator->alloc_chunk = &c->link;

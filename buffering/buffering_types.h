@@ -21,7 +21,6 @@ typedef struct _cls_buf
 
   cls_byte_t *data;
 
-  pthread_mutex_t lock_write;
   uint32_t nr_coll_participants;
 
   pthread_mutex_t lock_read;

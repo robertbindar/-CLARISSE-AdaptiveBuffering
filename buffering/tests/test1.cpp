@@ -16,6 +16,12 @@
 #include <chrono>
 #include "cls_buffering.h"
 
+#define _BENCHMARKING
+
+#ifdef _BENCHMARKING
+#include "benchmarking.h"
+#endif
+
 using namespace std;
 using namespace std::chrono;
 
@@ -212,6 +218,10 @@ int main(int argc, char **argv)
     cls_buffering_t bufservice;
     cls_init_buffering(&bufservice, bufsize, nrbufs);
 
+#ifdef _BENCHMARKING
+    init_benchmarking(nr_consumers, nr_producers);
+#endif
+
     vector<std::thread> workers;
 
     for (uint32_t i = 0; i < nr_producers; ++i) {
@@ -223,6 +233,20 @@ int main(int argc, char **argv)
         std::thread worker(consumer, &bufservice, i, bufsize, nr_consumers);
         workers.push_back(std::move(worker));
     }
+
+#ifdef _BENCHMARKING
+    while (true) {
+        {
+            std::lock_guard<mutex> guard(g_lock);
+            if (nr_consumers_finished + nr_producers_finished == nr_consumers + nr_producers) {
+                break;
+            }
+        }
+
+        print_counters(&bufservice, nr_consumers, nr_producers);
+        std::this_thread::sleep_for(1ms);
+    }
+#endif
 
     for (auto &t : workers) {
         t.join();

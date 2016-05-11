@@ -60,33 +60,28 @@ void allocator_dealloc(allocator_t *allocator, void *p)
   pthread_mutex_unlock(&allocator->lock);
 }
 
+#include <stdio.h>
 uint32_t allocator_shrink(allocator_t *allocator)
 {
   uint32_t count = 0;
 
   pthread_mutex_lock(&allocator->lock);
-  dllist_link *l = allocator->chunks.tail;
+  dllist_link *l = allocator->chunks.head;
   uint32_t nr_blocks = allocator->nr_blocks;
-  for (; l && l->prev;) {
+  for (; l ;) {
     chunk_t *tmp = DLLIST_ELEMENT(l, chunk_t, link);
-    chunk_t *prev = DLLIST_ELEMENT(l->prev, chunk_t, link);
-    if (chunk_get_count(tmp) != nr_blocks || chunk_get_count(prev) != nr_blocks) {
-      break;
+    dllist_link *nl = l->next;
+    if (chunk_get_count(tmp) == nr_blocks) {
+      allocator->chunks_count--;
+      dllist_rem(&allocator->chunks, l);
+
+      pthread_mutex_unlock(&allocator->lock);
+      chunk_destroy(tmp);
+      free(tmp);
+      count += nr_blocks;
+      pthread_mutex_lock(&allocator->lock);
     }
-
-    dllist_link *pl = l->prev;
-
-    allocator->chunks_count--;
-
-    dllist_rem(&allocator->chunks, l);
-
-    pthread_mutex_unlock(&allocator->lock);
-    l = pl;
-
-    chunk_destroy(tmp);
-    free(tmp);
-    count += nr_blocks;
-    pthread_mutex_lock(&allocator->lock);
+    l = nl;
   }
   pthread_mutex_unlock(&allocator->lock);
 

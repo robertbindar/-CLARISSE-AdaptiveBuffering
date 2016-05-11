@@ -197,8 +197,8 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
   bufsched->buffer_size = buffer_size;
   bufsched->nr_assigned_buffers = 0;
 
-  bufsched->min_free_buffers = 5 * max_pool_size / 100 + 1;
-  bufsched->max_free_buffers = 50 * max_pool_size / 100 + 2;
+  bufsched->min_free_buffers = 10 * max_pool_size / 100 + 1;
+  bufsched->max_free_buffers = 60 * max_pool_size / 100 + 2;
 
   bufsched->max_pool_size = max_pool_size;
 
@@ -266,7 +266,7 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
   if (bufsched->nr_free_buffers <= bufsched->min_free_buffers) {
     if (bufsched->nr_free_buffers + bufsched->nr_assigned_buffers >= bufsched->max_pool_size) {
       swapout = 1;
-    } else if (bufsched->nr_free_buffers == bufsched->min_free_buffers) {
+    } else {
       expand = 1;
     }
   }
@@ -322,7 +322,7 @@ error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
   // If there are buffers swapped on the disk, bring them in to speed up
   // upcoming consumers
   uint8_t shrink = 0;
-  if (bufsched->nr_free_buffers == bufsched->max_free_buffers) {
+  if (bufsched->nr_free_buffers >= bufsched->max_free_buffers) {
     shrink = 1;
   }
   pthread_mutex_unlock(&bufsched->lock);

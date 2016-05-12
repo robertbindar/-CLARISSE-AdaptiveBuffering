@@ -69,10 +69,12 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         cls_put(bufservice, handle, 0, buf, count);
         auto end_time = steady_clock::now();
 
+#ifdef _BENCHMARKING
         {
             std::lock_guard<mutex> guard(g_lock);
             print_counters(bufservice);
         }
+#endif
 
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
@@ -144,10 +146,12 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         cls_get(bufservice, handle, 0, data, count, ncons);
         auto end_time = steady_clock::now();
 
+#ifdef _BENCHMARKING
         {
             std::lock_guard<mutex> guard(g_lock);
             print_counters(bufservice);
         }
+#endif
 
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 

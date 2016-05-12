@@ -128,6 +128,11 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
     ftruncate(fd, file_size);
 
     uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
+    uint32_t chunk = nrbufs / ncons;
+    uint32_t begin = rank * chunk;
+    if (rank == ncons - 1) {
+        chunk = nrbufs - chunk * (ncons - 1);
+    }
 
     uint32_t i = 0;
     cls_buf_handle_t handle;
@@ -136,11 +141,11 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
     auto elapsed_time = milliseconds::zero();
 
     char *data = new char[bufsize];
-    while (i < nrbufs) {
-        handle.offset = i * bufsize;
+    while (i < chunk) {
+        handle.offset = (begin + i) * bufsize;
 
         uint32_t count = 0;
-        if (file_size % bufsize && i == nrbufs - 1) {
+        if (rank == ncons - 1 && file_size % bufsize && i == chunk - 1) {
             count = bufsize - (nrbufs * bufsize - file_size);
         } else {
             count = bufsize;

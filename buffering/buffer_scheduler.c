@@ -99,7 +99,6 @@ static void *stretch_allocator(void *arg)
 
       // Call the swapper to freeup some memory
       /*swapout_buffers(bufsched);*/
-      fprintf(stderr, "swapout buffers\n");
     }
 
     pthread_mutex_unlock(&bufsched->lock_worker);

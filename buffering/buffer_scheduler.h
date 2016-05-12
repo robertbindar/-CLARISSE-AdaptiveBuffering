@@ -7,6 +7,7 @@
 #include "buffer_swapper.h"
 #include "errors.h"
 #include "buffering_types.h"
+#include "worker.h"
 
 typedef struct _buffer_scheduler
 {
@@ -14,10 +15,6 @@ typedef struct _buffer_scheduler
   allocator_t allocator_md;
 
   buffer_swapper_t swapper;
-
-  uint64_t capacity;
-
-  uint64_t nr_swapout;
 
   uint64_t buffer_size;
 
@@ -31,17 +28,12 @@ typedef struct _buffer_scheduler
 
   pthread_mutex_t lock;
 
-  pthread_t worker_alloc_tid;
-  uint8_t async_expand;
-  uint8_t async_shrink;
-  uint8_t async_cancel;
-  uint64_t async_swapout;
-  pthread_mutex_t lock_worker;
-  pthread_cond_t cond_alloc;
-
   pthread_cond_t free_buffers_available;
 
   dllist mrucache;
+
+  worker_t worker;
+  task_queue_t task_queue;
 } buffer_scheduler_t;
 
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size, uint64_t max_pool_size);

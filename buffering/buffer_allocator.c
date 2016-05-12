@@ -60,7 +60,8 @@ void allocator_dealloc(allocator_t *allocator, void *p)
   pthread_mutex_unlock(&allocator->lock);
 }
 
-#include <stdio.h>
+// TODO: improvement: store the empty chunks after removing from the allocator
+// and dealloc them at the end
 uint32_t allocator_shrink(allocator_t *allocator)
 {
   uint32_t count = 0;

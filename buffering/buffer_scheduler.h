@@ -25,6 +25,7 @@ typedef struct _buffer_scheduler
   uint64_t min_free_buffers;
 
   uint64_t max_pool_size;
+  uint64_t swapin_pool_limit;
 
   pthread_mutex_t lock;
 

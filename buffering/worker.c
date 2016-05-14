@@ -32,14 +32,6 @@ void *process_tasks(void *arg)
 
     t->cb(t);
 
-    if (t->own == TASK_OWN) {
-      pthread_mutex_lock(&t->lock);
-      t->task_finished = 1;
-      pthread_cond_signal(&t->sync);
-      pthread_mutex_unlock(&t->lock);
-      continue;
-    }
-
     destroy_task(w->queue, t);
   }
 }

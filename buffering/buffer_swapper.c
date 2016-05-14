@@ -34,6 +34,8 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
   HASH_FIND_PTR(sw->entries, &buf, found);
 
   lseek(fd, found->file_offset, SEEK_SET);
+
+  // FIXME: avoid short reads
   read(fd, buf->data, sw->bufsize);
 
   HASH_DEL(sw->entries, found);
@@ -45,8 +47,6 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
 
   free(found);
   pthread_mutex_unlock(&sw->lock);
-
-  buf->is_swapped = 0;
 
   close(fd);
 }
@@ -86,15 +86,6 @@ cls_buf_t *swapper_top(buffer_swapper_t *sw)
 
 void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf)
 {
-  // This function might be called from the swapping thread, the buffer needs
-  // to be protected so that this function won't interfere with any consumer thread.
-  pthread_mutex_lock(&buf->lock_read);
-  swapper_swapout_lockfree(sw, buf);
-  pthread_mutex_unlock(&buf->lock_read);
-}
-
-void swapper_swapout_lockfree(buffer_swapper_t *sw, cls_buf_t *buf)
-{
   swap_entry_t *entry = calloc(1, sizeof(swap_entry_t));
   char filename[MAX_FILENAME_SIZE];
   sprintf(filename, "%s%" PRIu32, sw->dirname, buf->handle.global_descr);
@@ -109,6 +100,8 @@ void swapper_swapout_lockfree(buffer_swapper_t *sw, cls_buf_t *buf)
   } else {
     entry->file_offset = lseek(fd, 0, SEEK_END);
   }
+
+  // FIXME: avoid short writes
   write(fd, buf->data, sw->bufsize);
   close(fd);
 
@@ -117,8 +110,6 @@ void swapper_swapout_lockfree(buffer_swapper_t *sw, cls_buf_t *buf)
   sw->entries_count++;
 
   pthread_mutex_unlock(&sw->lock);
-
-  buf->is_swapped = 1;
 }
 
 uint64_t swapper_getcount(buffer_swapper_t *sw)

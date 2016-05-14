@@ -36,8 +36,6 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf);
 
 void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf);
 
-void swapper_swapout_lockfree(buffer_swapper_t *sw, cls_buf_t *buf);
-
 cls_buf_t *swapper_top(buffer_swapper_t *sw);
 
 uint64_t swapper_getcount(buffer_swapper_t *sw);

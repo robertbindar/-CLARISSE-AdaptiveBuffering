@@ -46,27 +46,12 @@ task_t *create_task(task_queue_t *tq, callback_t cb, task_ownership own)
   t->buffer = NULL;
   t->bufsched = NULL;
 
-  t->task_finished = 0;
-  pthread_cond_init(&t->sync, NULL);
-  pthread_mutex_init(&t->lock, NULL);
-
   return t;
 }
 
 void destroy_task(task_queue_t *tq, task_t *t)
 {
   allocator_dealloc(&tq->allocator, (void*) t);
-}
-
-void wait_task(task_t *t)
-{
-  pthread_mutex_lock(&t->lock);
-  while (!t->task_finished) {
-    pthread_cond_wait(&t->sync, &t->lock);
-  }
-  pthread_mutex_unlock(&t->lock);
-
-  destroy_task(&t->bufsched->task_queue, t);
 }
 
 void task_queue_destroy(task_queue_t *tq)

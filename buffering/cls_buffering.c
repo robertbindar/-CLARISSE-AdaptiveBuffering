@@ -64,23 +64,34 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
 
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
+  // We want the memcpy line to be fully parallel, but if the swapper is on,
+  // it might try to swap out the buffer. This won't block the swapper too much
+  // because consumers will be firstly notified when the buffer is transitioned
+  // from BUF_ALLOCATED to BUF_UPDATED.
+  // FIXME: implement rwlock, with high priority for readers
   pthread_rwlock_rdlock(&found->rwlock_swap);
 
   // Wait until the buffer is written by producers
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
-  while (!found->ready) {
-    pthread_cond_wait(&found->buf_ready, &found->lock_read);
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
+  while (found->state == BUF_ALLOCATED) {
+    pthread_cond_wait(&found->cond_state, &found->lock);
   }
 
-  if (found->is_swapped) {
-    sched_swapin(&bufservice->buf_sched, found);
+  // If the buffer is swapped, the first consumer that arrives will schedule a
+  // task to swap in the buffer. It will be either swapped in by this dispatched task
+  // or by a voluntary task dispatched by the async allocator itself.
+  while (found->state == BUF_SWAPPED_OUT || found->state == BUF_QUEUED_SWAPIN) {
+    if (found->state == BUF_SWAPPED_OUT) {
+      sched_swapin(&bufservice->buf_sched, found);
+    }
+    pthread_cond_wait(&found->cond_state, &found->lock);
   }
-  pthread_mutex_unlock(&found->lock_read);
+  pthread_mutex_unlock(&found->lock);
 
   // Read data from buffer
   memcpy(data, found->data + offset, count);
 
-  pthread_mutex_lock(&found->lock_read);
+  pthread_mutex_lock(&found->lock);
   found->nr_consumers_finished++;
 
   // The last consumer that finished reading will release the buffer
@@ -89,21 +100,13 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
     HASH_DEL(bufservice->buffers, found);
     HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-    if (sched_mark_consumed(&bufservice->buf_sched, found) || found->was_swapped_in) {
-      pthread_mutex_unlock(&found->lock_read);
-      pthread_rwlock_unlock(&found->rwlock_swap);
-
-      sched_free(&bufservice->buf_sched, found);
-
-      return BUFFERING_SUCCESS;
-    }
-
-    found->freed_by_swapper = 1;
+    sched_mark_consumed(&bufservice->buf_sched, found);
+    sched_free(&bufservice->buf_sched, found);
   }
 
   // Unlock rwlock first, avoid race
   pthread_rwlock_unlock(&found->rwlock_swap);
-  pthread_mutex_unlock(&found->lock_read);
+  pthread_mutex_unlock(&found->lock);
 
   return BUFFERING_SUCCESS;
 }
@@ -131,7 +134,7 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   }
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
   if (!found->data) {
     sched_alloc(&bufservice->buf_sched, found);
   }
@@ -140,17 +143,17 @@ error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
   memcpy(found->data + offset, data, count);
 
   // Mark the buffer as being ready to be read
-  found->ready++;
+  found->state = BUF_UPDATED;
 
   // Notify any waiting consumer
-  pthread_cond_broadcast(&found->buf_ready);
+  pthread_cond_broadcast(&found->cond_state);
 
   // Tell the scheduler this buffer is written by all the participants.
   // Telling the consumers first about the buffer, might give them a chance to
   // read it before an eventual swapout might occur.
   sched_mark_updated(&bufservice->buf_sched, found);
 
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
 }
@@ -180,27 +183,26 @@ error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle,
 
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
   if (!found->data) {
     sched_alloc(&bufservice->buf_sched, found);
   }
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
 
   // Write the data to buffer
   memcpy(found->data + offset, data, count);
 
-  HANDLE_ERR(pthread_mutex_lock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
   found->nr_coll_participants++;
   if (found->nr_coll_participants == nr_participants) {
     // Mark the buffer as being ready to be read
-    found->ready++;
-
+    found->state = BUF_UPDATED;
     // Notify any waiting consumer
-    pthread_cond_broadcast(&found->buf_ready);
+    pthread_cond_broadcast(&found->cond_state);
 
     sched_mark_updated(&bufservice->buf_sched, found);
   }
-  HANDLE_ERR(pthread_mutex_unlock(&found->lock_read), BUFSERVICE_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
 }

@@ -76,6 +76,10 @@ uint32_t allocator_shrink(allocator_t *allocator)
       allocator->chunks_count--;
       dllist_rem(&allocator->chunks, l);
 
+      if (allocator->alloc_chunk == l) {
+        allocator->alloc_chunk = allocator->chunks.head;
+      }
+
       pthread_mutex_unlock(&allocator->lock);
       chunk_destroy(tmp);
       free(tmp);
@@ -95,6 +99,8 @@ uint32_t allocator_expand(allocator_t *allocator)
   chunk_init(c, allocator->nr_blocks, allocator->block_size);
 
   pthread_mutex_lock(&allocator->lock);
+
+  // FIXME: get rid of this policy
   chunk_t *tail = DLLIST_ELEMENT(allocator->chunks.tail, chunk_t, link);
   if (allocator->chunks.tail == NULL || chunk_empty(tail)) {
     allocator->alloc_chunk = &c->link;

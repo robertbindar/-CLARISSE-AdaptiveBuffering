@@ -8,6 +8,15 @@
 typedef char cls_byte_t;
 typedef uint64_t cls_size_t;
 
+typedef enum
+{
+  BUF_ALLOCATED = 0,
+  BUF_UPDATED,
+  BUF_SWAPPED_OUT,
+  BUF_QUEUED_SWAPIN,
+  BUF_RELEASED
+} buffer_state_t;
+
 typedef struct _cls_buf_handle
 {
   cls_size_t offset;
@@ -21,19 +30,14 @@ typedef struct _cls_buf
 
   cls_byte_t *data;
 
+  uint32_t nr_consumers_finished;
   uint32_t nr_coll_participants;
 
-  pthread_mutex_t lock_read;
-  uint8_t ready;
-  pthread_cond_t buf_ready;
+  pthread_mutex_t lock;
+  buffer_state_t state;
+  pthread_cond_t cond_state;
 
-  uint32_t nr_consumers_finished;
-
-  uint8_t is_swapped;
-  uint8_t freed_by_swapper;
-  uint8_t was_swapped_in;
   pthread_rwlock_t rwlock_swap;
+
   dllist_link link_mru;
-
 } cls_buf_t;
-

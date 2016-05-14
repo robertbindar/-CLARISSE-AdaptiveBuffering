@@ -34,9 +34,6 @@ typedef struct
   callback_t cb;
 
   task_ownership own;
-  uint8_t task_finished;
-  pthread_cond_t sync;
-  pthread_mutex_t lock;
 
   dllist_link link;
 
@@ -51,8 +48,6 @@ void submit_task(task_queue_t *tq, task_t *t);
 task_t *get_task(task_queue_t *tq);
 
 task_t *create_task(task_queue_t *tq, callback_t cb, task_ownership own);
-
-void wait_task(task_t *t);
 
 void destroy_task(task_queue_t *tq, task_t *t);
 

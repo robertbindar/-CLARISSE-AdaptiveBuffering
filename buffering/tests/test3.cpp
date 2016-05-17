@@ -41,51 +41,47 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
 
     char *file_addr = (char *)mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, fd, 0);
 
-    auto elapsed_time = milliseconds::zero();
-
     uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
+    uint32_t chunk = nrbufs / nprod;
+    uint32_t begin = rank * chunk;
+    if (rank == nprod - 1) {
+        chunk = nrbufs - chunk * (nprod - 1);
+    }
 
+    auto elapsed_time = milliseconds::zero();
     uint32_t i = 0;
     cls_buf_handle_t handle;
     handle.global_descr = 0;
 
     char *buf = new char[bufsize];
+    while (i < chunk) {
+        handle.offset = (begin + i) * bufsize;
 
-    // All the producers will collectively write each buffer
-    while (i < nrbufs) {
-        uint32_t size;
-        if (file_size % bufsize && i == nrbufs - 1) {
-            size = bufsize - (nrbufs * bufsize - file_size);
+        uint32_t count = 0;
+        if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
+            count = bufsize - (nrbufs * bufsize - file_size);
         } else {
-            size = bufsize;
+            count = bufsize;
         }
-
-        uint32_t count = size / nprod;
-        if (rank == nprod - 1) {
-            // The last producer might get a bigger chunk
-            count = size - (nprod - 1) * (size / nprod);
-        }
-
-        handle.offset = i * bufsize;
-        uint32_t offset = rank * (size / nprod);
-
-        std::copy(file_addr + i * bufsize + offset, file_addr + i * bufsize + offset + count, buf);
+        std::copy(file_addr + (begin + i) * bufsize, file_addr + (begin + i) * bufsize + count, buf);
 
         auto start_time = steady_clock::now();
-        cls_put_all(bufservice, handle, offset, buf, count, nprod);
+        cls_put(bufservice, handle, 0, buf, count);
         auto end_time = steady_clock::now();
 
-        elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 #ifdef _BENCHMARKING
         {
             std::lock_guard<mutex> guard(g_lock);
             print_counters(bufservice);
         }
 #endif
+
+        elapsed_time += duration_cast<milliseconds>(end_time - start_time);
+
         ++i;
     }
-
     delete [] buf;
+
 
     static auto avg_time = milliseconds::zero();
     static auto min_time = milliseconds::max();
@@ -152,8 +148,9 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         }
 
         auto start_time = steady_clock::now();
-        cls_get(bufservice, handle, 0, data, count, ncons);
+        cls_get(bufservice, handle, 0, data, count, 1);
         auto end_time = steady_clock::now();
+
 
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
@@ -164,7 +161,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         }
 #endif
 
-        lseek(fd, i * bufsize, SEEK_SET);
+        lseek(fd, (begin + i) * bufsize, SEEK_SET);
         write(fd, data, count);
         ++i;
     }
@@ -201,7 +198,13 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
             int32_t output = open(file, O_RDONLY);
             void *output_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, output, 0);
 
-            if (memcmp(input_addr, output_addr, file_size)) {
+            uint32_t ch = nrbufs / ncons;
+            uint32_t size = ch * bufsize;
+            if (i == ncons - 1) {
+                size = file_size - ch * (ncons - 1) * bufsize;
+            }
+
+            if (memcmp((char *)input_addr + ch * i * bufsize, (char *) output_addr + ch * i * bufsize, size)) {
                 passed = -1;
                 cerr << "--Test " << __FILE__ << " failed: " << file << " does not match input\n";
             }
@@ -230,7 +233,7 @@ int main(int argc, char **argv)
     uint32_t nr_producers = atoi(argv[1]);
     uint32_t nr_consumers = atoi(argv[2]);
 
-    uint32_t bufsize = 102400;
+    uint32_t bufsize = 1024;
 
     int32_t fd = open("input", O_RDONLY);
     struct stat finfo;

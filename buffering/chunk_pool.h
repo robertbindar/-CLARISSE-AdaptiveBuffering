@@ -15,6 +15,7 @@ typedef struct _chunk
   chunk_md *p_md;
   dllist free_chunks;
   uint32_t count_free;
+  uint32_t nr_blocks;
 
   dllist_link link;
 } chunk_t;
@@ -29,7 +30,7 @@ void chunk_destroy(chunk_t *ch);
 
 uint8_t chunk_empty(chunk_t *ch);
 
-uint8_t chunk_exists(chunk_t *ch, uint32_t nr_blocks, uint32_t block_size, void *p);
+uint8_t chunk_exists(chunk_t *ch, uint32_t block_size, void *p);
 
 uint32_t chunk_get_count(chunk_t *ch);
 

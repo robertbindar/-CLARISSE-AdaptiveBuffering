@@ -7,6 +7,7 @@
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
                       uint64_t max_pool_size)
 {
+  fprintf(stderr, "maxpool: %d\n", max_pool_size);
   pthread_mutex_init(&bufsched->lock, NULL);
   pthread_cond_init(&bufsched->free_buffers_available, NULL);
 
@@ -14,25 +15,25 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
   bufsched->nr_assigned_buffers = 0;
 
   // Default window limits for buffer allocation
-  bufsched->min_free_buffers = 10 * max_pool_size / 100 + 1;
-  bufsched->max_free_buffers = 60 * max_pool_size / 100 + 2;
-  bufsched->max_pool_size = max_pool_size;
+  bufsched->max_pool_size = max_pool_size + 1;
+  bufsched->min_free_buffers = 10 * bufsched->max_pool_size / 100 + 1;
+  bufsched->max_free_buffers = 60 * bufsched->max_pool_size / 100 + 2;
   bufsched->nr_free_buffers = bufsched->min_free_buffers + 1;
 
   // A window limit for consumers trying to swapin buffers, but there's no free memory
-  bufsched->swapin_pool_limit = max_pool_size + 5 * max_pool_size / 100;
+  bufsched->swapin_pool_limit = bufsched->max_pool_size + 5 * bufsched->max_pool_size / 100;
 
 
   // Init custom allocators for metadata and buffers memory
-  allocator_init(&bufsched->allocator_md, sizeof(cls_buf_t), max_pool_size);
+  allocator_init(&bufsched->allocator_md, sizeof(cls_buf_t), bufsched->max_pool_size);
   allocator_init(&bufsched->allocator_data, buffer_size, bufsched->nr_free_buffers);
 
   // Grow allocators above the low window limit
-  allocator_expand(&bufsched->allocator_md);
-  allocator_expand(&bufsched->allocator_data);
+  allocator_expand(&bufsched->allocator_md, bufsched->max_pool_size);
+  allocator_expand(&bufsched->allocator_data, bufsched->nr_free_buffers);
 
   // Init task queue
-  task_queue_init(&bufsched->task_queue, max_pool_size);
+  task_queue_init(&bufsched->task_queue, bufsched->max_pool_size);
 
   // Dispatch worker
   dispatch_worker(&bufsched->worker, &bufsched->task_queue);
@@ -246,9 +247,20 @@ static void expand_allocator(void *arg)
   if (bufsched->nr_free_buffers > bufsched->min_free_buffers) {
     goto cleanup;
   }
+
+  uint32_t count = bufsched->min_free_buffers + 1;
+  int32_t diff = bufsched->max_pool_size - bufsched->nr_assigned_buffers - bufsched->nr_free_buffers;
+  if (diff <= 1) {
+    goto cleanup;
+  }
+
+  // Make sure you don't exceed the max pool size
+  if (count > diff) {
+    count = diff - 1;
+  }
   pthread_mutex_unlock(&bufsched->lock);
 
-  uint32_t count = allocator_expand(&bufsched->allocator_data);
+  allocator_expand(&bufsched->allocator_data, count);
 
   pthread_mutex_lock(&bufsched->lock);
   bufsched->nr_free_buffers += count;
@@ -311,9 +323,11 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 
   // Block if there are no free buffers
   while (bufsched->nr_free_buffers == 0) {
-    task_t *task = create_task(&bufsched->task_queue, (callback_t) swapout_buffer, TASK_DETACHED);
-    task->bufsched = bufsched;
-    submit_task(&bufsched->task_queue, task);
+    if (bufsched->nr_free_buffers + bufsched->nr_assigned_buffers >= bufsched->max_pool_size) {
+      task_t *task = create_task(&bufsched->task_queue, (callback_t) swapout_buffer, TASK_DETACHED);
+      task->bufsched = bufsched;
+      submit_task(&bufsched->task_queue, task);
+    }
 
     pthread_cond_wait(&bufsched->free_buffers_available, &bufsched->lock);
   }

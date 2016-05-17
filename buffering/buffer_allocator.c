@@ -5,7 +5,7 @@
 void allocator_init(allocator_t *allocator, uint32_t block_size, uint32_t nr_blocks)
 {
   allocator->block_size = block_size;
-  allocator->nr_blocks = nr_blocks;
+  allocator->default_nr_blocks = nr_blocks;
   allocator->alloc_chunk = NULL;
   allocator->chunks_count = 0;
   dllist_init(&allocator->chunks);
@@ -22,7 +22,7 @@ void* allocator_alloc(allocator_t *allocator)
     for (; ; l = l->next) {
       if (!l) {
         chunk_t *c = malloc(sizeof(chunk_t));
-        chunk_init(c, allocator->nr_blocks, allocator->block_size);
+        chunk_init(c, allocator->default_nr_blocks, allocator->block_size);
         allocator->alloc_chunk = &c->link;
         dllist_iat(&allocator->chunks, &c->link);
         allocator->chunks_count++;
@@ -52,7 +52,7 @@ void allocator_dealloc(allocator_t *allocator, void *p)
   dllist_link *l = allocator->chunks.head;
   for (; l; l = l->next) {
     chunk_t *tmp = DLLIST_ELEMENT(l, chunk_t, link);
-    if (chunk_exists(tmp, allocator->nr_blocks, allocator->block_size, p)) {
+    if (chunk_exists(tmp, allocator->block_size, p)) {
       chunk_dealloc(tmp, p, allocator->block_size);
       break;
     }
@@ -68,11 +68,10 @@ uint32_t allocator_shrink(allocator_t *allocator)
 
   pthread_mutex_lock(&allocator->lock);
   dllist_link *l = allocator->chunks.head;
-  uint32_t nr_blocks = allocator->nr_blocks;
   for (; l ;) {
     chunk_t *tmp = DLLIST_ELEMENT(l, chunk_t, link);
     dllist_link *nl = l->next;
-    if (chunk_get_count(tmp) == nr_blocks) {
+    if (chunk_get_count(tmp) == tmp->nr_blocks) {
       allocator->chunks_count--;
       dllist_rem(&allocator->chunks, l);
 
@@ -81,9 +80,9 @@ uint32_t allocator_shrink(allocator_t *allocator)
       }
 
       pthread_mutex_unlock(&allocator->lock);
+      count += tmp->nr_blocks;
       chunk_destroy(tmp);
       free(tmp);
-      count += nr_blocks;
       pthread_mutex_lock(&allocator->lock);
     }
     l = nl;
@@ -93,10 +92,10 @@ uint32_t allocator_shrink(allocator_t *allocator)
   return count;
 }
 
-uint32_t allocator_expand(allocator_t *allocator)
+void allocator_expand(allocator_t *allocator, uint32_t count)
 {
   chunk_t *c = malloc(sizeof(chunk_t));
-  chunk_init(c, allocator->nr_blocks, allocator->block_size);
+  chunk_init(c, count, allocator->block_size);
 
   pthread_mutex_lock(&allocator->lock);
 
@@ -110,8 +109,6 @@ uint32_t allocator_expand(allocator_t *allocator)
   allocator->chunks_count++;
 
   pthread_mutex_unlock(&allocator->lock);
-
-  return allocator->nr_blocks;
 }
 
 void allocator_destroy(allocator_t *allocator)

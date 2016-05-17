@@ -3,6 +3,7 @@
 
 void chunk_init(chunk_t *ch, uint32_t nr_blocks, uint32_t block_size)
 {
+  ch->nr_blocks = nr_blocks;
   ch->p_data = malloc(nr_blocks * block_size * sizeof(char));
   ch->p_md = malloc(nr_blocks * sizeof(chunk_md));
 
@@ -45,9 +46,9 @@ uint8_t chunk_empty(chunk_t *ch)
   return ch->count_free == 0;
 }
 
-uint8_t chunk_exists(chunk_t *ch, uint32_t nr_blocks, uint32_t block_size, void *p)
+uint8_t chunk_exists(chunk_t *ch, uint32_t block_size, void *p)
 {
-  char *end = ((char*)ch->p_data + nr_blocks * block_size);
+  char *end = ((char*)ch->p_data + ch->nr_blocks * block_size);
   char *s = (char*) p;
   return s >= ch->p_data && s < end;
 }

@@ -1,4 +1,6 @@
 #include <stdio.h>
+
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <unistd.h>
 #include "cls_buffering.h"

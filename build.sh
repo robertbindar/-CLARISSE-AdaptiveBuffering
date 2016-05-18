@@ -2,7 +2,7 @@
 
 if [[ $1 = "clean" ]]; then
   make clean -C buffering
-  make clean -C simulation
+  #make clean -C simulation
   make clean -C buffering/tests/
 fi
 BINARIES=bin/
@@ -21,4 +21,6 @@ mv buffering/libbuffering.so $BINARIES
 #mv simulation/producer_consumer_decoupling $BINARIES
 
 make -C buffering/tests/
+
+make -C tests/
 

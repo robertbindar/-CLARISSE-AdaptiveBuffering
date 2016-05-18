@@ -13,16 +13,23 @@
 // The input file is devided in blocks of fixed size. Each producer receives a
 // number of blocks and for each block will issue a cls_put call.
 
+double prod_time = 0;
+double cons_time = 0;
+
 void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 {
-  int32_t rank, nprod;
+  int32_t rank, nprod, nserv;
 
   MPI_Comm_rank(intracomm, &rank);
   MPI_Comm_size(intracomm, &nprod);
+  MPI_Comm_remote_size(intercomm_server, &nserv);
 
   struct stat finfo;
   uint64_t bufsize = MAX_DATA;
   uint64_t file_size;
+
+  // Distribute the producers evenly between servers
+  int32_t dest_server = rank % nserv;
 
   int32_t fd = open("input", O_RDONLY);
   fstat(fd, &finfo);
@@ -37,8 +44,6 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     chunk = nrbufs - chunk * (nprod - 1);
   }
 
-  double start_time = MPI_Wtime();
-
   uint32_t i = 0;
   cls_buf_handle_t handle;
   handle.global_descr = 0;
@@ -50,6 +55,7 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     put.nr_participants = 1;
     put.handle = handle;
     put.offset = 0;
+    put.quit = 0;
     if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
       put.count = bufsize - (nrbufs * bufsize - file_size);
     } else {
@@ -58,28 +64,40 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     memcpy(put.data, file_addr + (begin + i) * bufsize, put.count);
 
     cls_put_result_t result;
-    MPI_Send(&put, sizeof(cls_op_put_t), MPI_CHAR, 0, 0, intercomm_server);
+    MPI_Send(&put, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 0, intercomm_server);
 
-    MPI_Recv(&result, sizeof(cls_put_result_t), MPI_CHAR, 0, 0, intercomm_server,
+    MPI_Recv(&result, sizeof(cls_put_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
              MPI_STATUS_IGNORE);
+
+    prod_time += result.time;
 
     ++i;
   }
 
-  double end_time = MPI_Wtime();
-  fprintf(stderr, "=================Producer %d time: %lf============\n", rank, end_time - start_time);
-
   munmap(file_addr, file_size);
   close(fd);
 
+  cls_put_result_t result;
+  cls_op_put_t quit;
+  quit.quit = 1;
+  MPI_Send(&quit, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 0, intercomm_server);
+
+  MPI_Recv(&result, sizeof(cls_put_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+      MPI_STATUS_IGNORE);
+
+  fprintf(stderr, "Producer rank %d time: %lf\n", rank, prod_time);
 }
 
 void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 {
-  int32_t rank, ncons;
+  int32_t rank, ncons, nserv;
 
   MPI_Comm_rank(intracomm, &rank);
   MPI_Comm_size(intracomm, &ncons);
+  MPI_Comm_remote_size(intercomm_server, &nserv);
+
+  // Distribute the consumers evenly between servers
+  int32_t dest_server = rank % nserv;
 
   struct stat finfo;
   uint64_t bufsize = MAX_DATA;
@@ -97,47 +115,58 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   ftruncate(fd, file_size);
 
   uint32_t nrbufs = file_size / bufsize + (file_size % bufsize != 0);
-
-  double start_time = MPI_Wtime();
+  uint32_t chunk = nrbufs / ncons;
+  uint32_t begin = rank * chunk;
+  if (rank == ncons - 1) {
+    chunk = nrbufs - chunk * (ncons - 1);
+  }
 
   uint32_t i = 0;
   cls_buf_handle_t handle;
   handle.global_descr = 0;
 
-  while (i < nrbufs) {
-    handle.offset = i * bufsize;
+  while (i < chunk) {
+    handle.offset = (begin + i) * bufsize;
 
     cls_op_get_t get;
-    get.nr_participants = ncons;
+    get.nr_participants = 1;
     get.offset = 0;
     get.handle = handle;
-    if (file_size % bufsize && i == nrbufs - 1) {
+    get.quit = 0;
+    if (rank == ncons - 1 && file_size % bufsize && i == chunk - 1) {
       get.count = bufsize - (nrbufs * bufsize - file_size);
     } else {
       get.count = bufsize;
     }
 
     cls_get_result_t result;
-    MPI_Send(&get, sizeof(cls_op_get_t), MPI_CHAR, 0, 0, intercomm_server);
+    MPI_Send(&get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 0, intercomm_server);
 
-    MPI_Recv(&result, sizeof(cls_get_result_t), MPI_CHAR, 0, 0, intercomm_server,
+    MPI_Recv(&result, sizeof(cls_get_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
              MPI_STATUS_IGNORE);
+    cons_time += result.time;
 
-    lseek(fd, i * bufsize, SEEK_SET);
+    lseek(fd, (begin + i) * bufsize, SEEK_SET);
     write(fd, result.data, get.count);
     ++i;
   }
-
-  double end_time = MPI_Wtime();
-
-  fprintf(stderr, "=================Consumer %d time: %lf============\n", rank, end_time - start_time);
 
   close(fd);
 
   MPI_Barrier(intracomm);
 
-  int passed = 0;
+  cls_get_result_t result;
+  cls_op_get_t quit;
+  quit.quit = 1;
+  MPI_Send(&quit, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 0, intercomm_server);
+  MPI_Recv(&result, sizeof(cls_get_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+           MPI_STATUS_IGNORE);
+  fprintf(stderr, "Consumer rank %d time: %lf\n", rank, cons_time);
+
+  MPI_Barrier(intracomm);
+
   if (rank == 0) {
+    int32_t passed = 0;
     int32_t input = open("input", O_RDONLY);
     void *input_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, input, 0);
 
@@ -148,9 +177,15 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
       int32_t output = open(file, O_RDONLY);
       void *output_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, output, 0);
 
-      if (memcmp(input_addr, output_addr, file_size)) {
+      uint32_t ch = nrbufs / ncons;
+      uint32_t size = ch * bufsize;
+      if (i == ncons - 1) {
+        size = file_size - ch * (ncons - 1) * bufsize;
+      }
+
+      if (memcmp((char *)input_addr + ch * i * bufsize, (char *) output_addr + ch * i * bufsize, size)) {
         passed = -1;
-        fprintf(stderr, "--Test %s failed: %s does not match %s\n", __FILE__, file, "input");
+        fprintf(stderr, "--Test %s failed: %s does not match input\n", __FILE__, file);
       }
 
       close(output);
@@ -164,8 +199,6 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 
     munmap(input_addr, file_size);
     close(input);
-
-    /*MPI_Abort(MPI_COMM_WORLD, passed);*/
   }
 }
 

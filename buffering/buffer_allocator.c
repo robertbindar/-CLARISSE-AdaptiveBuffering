@@ -104,12 +104,6 @@ void allocator_expand(allocator_t *allocator, uint32_t count)
 
   pthread_mutex_lock(&allocator->lock);
 
-  // FIXME: get rid of this policy
-  chunk_t *tail = DLLIST_ELEMENT(allocator->chunks.tail, chunk_t, link);
-  if (allocator->chunks.tail == NULL || chunk_empty(tail)) {
-    allocator->alloc_chunk = &c->link;
-  }
-
   dllist_iat(&allocator->chunks, &c->link);
   allocator->chunks_count++;
 

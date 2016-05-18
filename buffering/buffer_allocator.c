@@ -60,11 +60,12 @@ void allocator_dealloc(allocator_t *allocator, void *p)
   pthread_mutex_unlock(&allocator->lock);
 }
 
-// TODO: improvement: store the empty chunks after removing from the allocator
-// and dealloc them at the end
 uint32_t allocator_shrink(allocator_t *allocator)
 {
   uint32_t count = 0;
+
+  dllist rem_list;
+  dllist_init(&rem_list);
 
   pthread_mutex_lock(&allocator->lock);
   dllist_link *l = allocator->chunks.head;
@@ -79,15 +80,19 @@ uint32_t allocator_shrink(allocator_t *allocator)
         allocator->alloc_chunk = allocator->chunks.head;
       }
 
-      pthread_mutex_unlock(&allocator->lock);
+      dllist_iat(&rem_list, l);
       count += tmp->nr_blocks;
-      chunk_destroy(tmp);
-      free(tmp);
-      pthread_mutex_lock(&allocator->lock);
     }
     l = nl;
   }
   pthread_mutex_unlock(&allocator->lock);
+
+  while (!dllist_is_empty(&rem_list)) {
+    dllist_link *head = dllist_rem_head(&rem_list);
+    chunk_t *tmp = DLLIST_ELEMENT(head, chunk_t, link);
+    chunk_destroy(tmp);
+    free(tmp);
+  }
 
   return count;
 }

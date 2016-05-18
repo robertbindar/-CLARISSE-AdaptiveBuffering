@@ -178,13 +178,14 @@ static void swapin_buffer(void *arg)
     goto cleanup;
   }
 
-  buf->data = allocator_alloc(&bufsched->allocator_data);
   bufsched->nr_assigned_buffers++;
   if (bufsched->nr_free_buffers > 0) {
     bufsched->nr_free_buffers--;
   }
 
   pthread_mutex_unlock(&bufsched->lock);
+
+  buf->data = allocator_alloc(&bufsched->allocator_data);
 
   swapper_swapin(&bufsched->swapper, buf);
 
@@ -203,7 +204,6 @@ static void shrink_allocator(void *arg)
   task_t *owner_task = (task_t *) arg;
   buffer_scheduler_t *bufsched = owner_task->bufsched;
 
-  // FIXME: improve: see ::allocator_shrink()
   pthread_mutex_lock(&bufsched->lock);
 
   if (bufsched->nr_free_buffers < bufsched->max_free_buffers) {
@@ -226,7 +226,11 @@ static void shrink_allocator(void *arg)
     goto cleanup;
   }
 
+  pthread_mutex_unlock(&bufsched->lock);
+
   uint32_t count = allocator_shrink(&bufsched->allocator_data);
+
+  pthread_mutex_lock(&bufsched->lock);
 
   if (bufsched->nr_free_buffers < count) {
     bufsched->nr_free_buffers = 0;
@@ -332,12 +336,12 @@ error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
     pthread_cond_wait(&bufsched->free_buffers_available, &bufsched->lock);
   }
 
-  buffer->data = allocator_alloc(&bufsched->allocator_data);
-
   bufsched->nr_assigned_buffers++;
   bufsched->nr_free_buffers--;
 
   pthread_mutex_unlock(&bufsched->lock);
+
+  buffer->data = allocator_alloc(&bufsched->allocator_data);
 
   return BUFFERING_SUCCESS;
 }

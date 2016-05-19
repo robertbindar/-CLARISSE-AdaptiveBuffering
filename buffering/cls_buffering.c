@@ -100,8 +100,12 @@ error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, cls
     HASH_DEL(bufservice->buffers, found);
     HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-    sched_mark_consumed(&bufservice->buf_sched, found);
+    pthread_mutex_unlock(&found->lock);
+    pthread_rwlock_unlock(&found->rwlock_swap);
+
     sched_free(&bufservice->buf_sched, found);
+
+    return BUFFERING_SUCCESS;
   }
 
   // Unlock rwlock first, avoid race

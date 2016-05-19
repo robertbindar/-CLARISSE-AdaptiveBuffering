@@ -26,9 +26,9 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
 {
   char filename[MAX_FILENAME_SIZE];
   sprintf(filename, "%s%" PRIu32, sw->dirname, buf->handle.global_descr);
-  int32_t fd = open(filename, O_RDONLY);
 
   pthread_mutex_lock(&sw->lock);
+  int32_t fd = open(filename, O_RDONLY);
 
   swap_entry_t *found;
   HASH_FIND_PTR(sw->entries, &buf, found);
@@ -41,9 +41,9 @@ void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
   HASH_DEL(sw->entries, found);
   sw->entries_count--;
 
-  free_off_t *f = malloc(sizeof(free_off_t));
-  f->offset = found->file_offset;
-  dllist_iat(&sw->disk_free_offsets, &f->link);
+  /*free_off_t *f = malloc(sizeof(free_off_t));*/
+  /*f->offset = found->file_offset;*/
+  /*dllist_iat(&sw->disk_free_offsets, &f->link);*/
 
   free(found);
   pthread_mutex_unlock(&sw->lock);
@@ -89,17 +89,17 @@ void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf)
   swap_entry_t *entry = calloc(1, sizeof(swap_entry_t));
   char filename[MAX_FILENAME_SIZE];
   sprintf(filename, "%s%" PRIu32, sw->dirname, buf->handle.global_descr);
-  int32_t fd = open(filename, O_RDWR | O_CREAT | O_APPEND, S_IRWXU);
 
   pthread_mutex_lock(&sw->lock);
+  int32_t fd = open(filename, O_RDWR | O_CREAT | O_APPEND, S_IRWXU);
 
-  if (!dllist_is_empty(&sw->disk_free_offsets)) {
-    dllist_link *tmp = dllist_rem_head(&sw->disk_free_offsets);
-    free_off_t *f = DLLIST_ELEMENT(tmp, free_off_t, link);
-    entry->file_offset = lseek(fd, f->offset, SEEK_SET);
-  } else {
+  /*if (!dllist_is_empty(&sw->disk_free_offsets)) {*/
+    /*dllist_link *tmp = dllist_rem_head(&sw->disk_free_offsets);*/
+    /*free_off_t *f = DLLIST_ELEMENT(tmp, free_off_t, link);*/
+    /*entry->file_offset = lseek(fd, f->offset, SEEK_SET);*/
+  /*} else {*/
     entry->file_offset = lseek(fd, 0, SEEK_END);
-  }
+  /*}*/
 
   // FIXME: avoid short writes
   write(fd, buf->data, sw->bufsize);

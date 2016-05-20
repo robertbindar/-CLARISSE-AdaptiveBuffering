@@ -4,6 +4,7 @@ if [[ $1 = "clean" ]]; then
   make clean -C buffering
   #make clean -C simulation
   make clean -C buffering/tests/
+  make clean -C tests/
 fi
 BINARIES=bin/
 INCLUDE=include/

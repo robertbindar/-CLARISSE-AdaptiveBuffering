@@ -246,7 +246,7 @@ int main(int argc, char **argv)
     cls_init_buffering(&bufservice, bufsize, nrbufs);
 
 #ifdef _BENCHMARKING
-    init_benchmarking(nr_consumers, nr_producers);
+    init_benchmarking(0, nr_consumers, nr_producers);
 #endif
 
     vector<std::thread> workers;

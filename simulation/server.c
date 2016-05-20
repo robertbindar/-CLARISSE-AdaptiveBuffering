@@ -17,12 +17,13 @@ MPI_Comm server_comm;
 
 void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm intracomm)
 {
-  int32_t rank, nprod, ncons;
+  int32_t rank, nprod, ncons, nserv;
   uint32_t i = 0;
   uint32_t nr_listeners = DEFAULT_NR_LISTENERS;
   uint32_t max_pool_size = DEFAULT_MAX_POOL_SIZE;
 
   MPI_Comm_rank(intracomm, &rank);
+  MPI_Comm_size(intracomm, &nserv);
   MPI_Comm_remote_size(intercomm_producer, &nprod);
   MPI_Comm_remote_size(intercomm_consumer, &ncons);
 
@@ -45,7 +46,7 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
 
   cls_init_buffering(&bufservice, MAX_DATA, max_pool_size);
 
-  init_benchmarking(rank, ncons, nprod);
+  init_benchmarking(rank, ncons, nprod, nserv);
 
   listener_t *listeners = calloc(2 * nr_listeners, sizeof(listener_t));
   for (i = 0; i < nr_listeners; ++i) {

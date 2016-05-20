@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "cls_buffering.h"
 
-#define FILENAME "benchmarking_swapping_"
+#define FILENAME "benchmarking_ondemand_"
 
 static FILE *out = NULL;
 

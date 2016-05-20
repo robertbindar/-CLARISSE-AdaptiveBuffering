@@ -79,7 +79,7 @@ int main(int argc, char **argv)
     if (err != MPI_SUCCESS)
       handle_err(err, "MPI_Intercomm_create in server\n");
 
-    server(intercomm_producer, intercomm_consumer);
+    server(intercomm_producer, intercomm_consumer, comm);
 
     MPI_Comm_free(&intercomm_producer);
     MPI_Comm_free(&intercomm_consumer);

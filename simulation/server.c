@@ -5,16 +5,29 @@
 #include <stdio.h>
 #include "cls_buffering.h"
 
+#include "benchmarking.h"
+
 #define DEFAULT_NR_LISTENERS 1
 #define DEFAULT_MAX_POOL_SIZE 1024
 
 static cls_buffering_t bufservice;
+static pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 
-void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer)
+MPI_Comm server_comm;
+
+void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm intracomm)
 {
+  int32_t rank, nprod, ncons;
   uint32_t i = 0;
   uint32_t nr_listeners = DEFAULT_NR_LISTENERS;
   uint32_t max_pool_size = DEFAULT_MAX_POOL_SIZE;
+
+  MPI_Comm_rank(intracomm, &rank);
+  MPI_Comm_remote_size(intercomm_producer, &nprod);
+  MPI_Comm_remote_size(intercomm_consumer, &ncons);
+
+  server_comm = intracomm;
+
   char *nl = getenv("BUFFERING_NR_SERVER_LISTENERS");
   if (nl) {
     sscanf(nl, "%d", &nr_listeners);
@@ -32,6 +45,8 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer)
 
   cls_init_buffering(&bufservice, MAX_DATA, max_pool_size);
 
+  init_benchmarking(rank, ncons, nprod);
+
   listener_t *listeners = calloc(2 * nr_listeners, sizeof(listener_t));
   for (i = 0; i < nr_listeners; ++i) {
     listener_init(&listeners[i], producer_handler, intercomm_producer);
@@ -48,6 +63,7 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer)
   free(listeners);
 
   cls_destroy_buffering(&bufservice);
+  destroy_benchmarking();
 }
 
 void *producer_handler(void *arg)
@@ -100,6 +116,10 @@ void *producer_handler(void *arg)
 
     MPI_Send(&result, sizeof(cls_put_result_t), MPI_CHAR, status.MPI_SOURCE, 0,
              lst->communicator);
+
+    pthread_mutex_lock(&g_lock);
+    print_counters(&bufservice);
+    pthread_mutex_unlock(&g_lock);
   }
 
   pthread_exit(NULL);
@@ -151,6 +171,10 @@ void *consumer_handler(void *arg)
 
     MPI_Send(&result, sizeof(cls_get_result_t), MPI_CHAR, status.MPI_SOURCE, 0,
              lst->communicator);
+
+    pthread_mutex_lock(&g_lock);
+    print_counters(&bufservice);
+    pthread_mutex_unlock(&g_lock);
   }
 
   pthread_exit(NULL);

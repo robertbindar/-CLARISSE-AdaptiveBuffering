@@ -116,9 +116,6 @@ static void swapout_buffer(void *arg)
   // It is possible that we got control over the buffer after it was read
   // by all the consumers and therefore scheduled to be released.
   if (buf->state == BUF_RELEASED) {
-    pthread_rwlock_unlock(&buf->rwlock_swap);
-    pthread_mutex_unlock(&buf->lock);
-
     allocator_dealloc(&bufsched->allocator_data, (void*) buf->data);
     destroy_buffer(buf);
     allocator_dealloc(&bufsched->allocator_md, (void*) buf);
@@ -129,7 +126,7 @@ static void swapout_buffer(void *arg)
     pthread_cond_broadcast(&bufsched->free_buffers_available);
     pthread_mutex_unlock(&bufsched->lock);
 
-    return;
+    goto cleanup;
   }
   swapper_swapout(&bufsched->swapper, buf);
   buf->state = BUF_SWAPPED_OUT;
@@ -287,38 +284,6 @@ cleanup:
   pthread_mutex_unlock(&bufsched->lock);
 }
 
-static void dealloc_buffer(void *arg)
-{
-  task_t *owner_task = (task_t *) arg;
-  buffer_scheduler_t *bufsched = owner_task->bufsched;
-  cls_buf_t *buffer = owner_task->buffer;
-
-  pthread_mutex_lock(&buffer->lock);
-  allocator_dealloc(&bufsched->allocator_data, (void*) buffer->data);
-  pthread_mutex_unlock(&buffer->lock);
-
-  mrucache_remove(bufsched, buffer);
-
-  destroy_buffer(buffer);
-  allocator_dealloc(&bufsched->allocator_md, (void*) buffer);
-
-  pthread_mutex_lock(&bufsched->lock);
-  bufsched->nr_assigned_buffers--;
-  bufsched->nr_free_buffers++;
-  pthread_cond_broadcast(&bufsched->free_buffers_available);
-
-  // Release some memory, there are too many free buffers allocated
-  // If there are buffers swapped on the disk, bring them in to speed up
-  // upcoming consumers
-  if (bufsched->nr_free_buffers >= bufsched->max_free_buffers) {
-    task_t *task = create_task(&bufsched->task_queue, (callback_t) shrink_allocator, TASK_DETACHED);
-    task->bufsched = bufsched;
-
-    submit_task(&bufsched->task_queue, task);
-  }
-  pthread_mutex_unlock(&bufsched->lock);
-}
-
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
 
@@ -370,13 +335,6 @@ error_code sched_alloc_md(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_
 
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
-  /*task_t *task = create_task(&bufsched->task_queue, (callback_t) dealloc_buffer, TASK_DETACHED);*/
-  /*task->bufsched = bufsched;*/
-  /*task->buffer = buffer;*/
-  /*buffer->state = BUF_RELEASED;*/
-
-  /*submit_task(&bufsched->task_queue, task);*/
-
   if (!sched_mark_consumed(bufsched, buffer)) {
     buffer->state = BUF_RELEASED;
     return BUFFERING_SUCCESS;

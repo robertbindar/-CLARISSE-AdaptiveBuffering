@@ -1,5 +1,5 @@
 CC = mpicc
-CFLAGS = -g -Wall -I ../include -O0
+CFLAGS = -g -I ../include -O0
 LDFLAGS = -L../bin/ -lpthread -lbuffering
 SIMULATION = ../simulation/producer_consumer_decoupling.c ../simulation/listener.c ../simulation/server.c
 EXEC = test_NM1_filetransfer1 test_NM1_filetransfer2_collective

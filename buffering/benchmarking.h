@@ -11,7 +11,7 @@ static FILE *out = NULL;
 static void init_benchmarking(int32_t server_rank, uint32_t ncons, uint32_t nprod)
 {
   char file[256];
-  sprintf(file, "%s%" PRIu32 "_%" PRIu32, FILENAME, nprod, ncons);
+  sprintf(file, "%snserv%" PRId32 "_%" PRIu32 "_%" PRIu32, FILENAME, server_rank, nprod, ncons);
   out = fopen(file, "w");
 }
 

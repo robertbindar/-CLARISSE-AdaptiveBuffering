@@ -16,6 +16,6 @@ BUFFERING_NUMBER_OF_PRODUCERS=$nprod \
 BUFFERING_NUMBER_OF_CONSUMERS=$ncons \
 BUFFERING_NUMBER_OF_SERVERS=$nserv   \
 BUFFERING_NR_SERVER_LISTENERS=$nlist \
-BUFFERING_MAX_POOL_SIZE=2000000       \
+BUFFERING_MAX_POOL_SIZE=1331200       \
 mpiexec -n $(($nprod + $ncons + $nserv)) $debug ./test_NM1_filetransfer1
 

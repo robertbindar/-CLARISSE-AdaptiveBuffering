@@ -14,7 +14,11 @@ for i = 2:nargin
   acc = acc + x';
 endfor
 
-plot(acc);
+fid = fopen('plot_ondemand', 'w+');
 
-pause();
+for i = 1:length(acc)
+  fprintf(fid, "%d\n", acc(i));
+endfor
+
+fclose(fid);
 

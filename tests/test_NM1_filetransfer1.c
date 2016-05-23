@@ -101,7 +101,7 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
 
   struct stat finfo;
   uint64_t bufsize = MAX_DATA;
-  uint32_t file_size;
+  uint64_t file_size;
 
   int32_t input = open("input", O_RDONLY);
   fstat(input, &finfo);

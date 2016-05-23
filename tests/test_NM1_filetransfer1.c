@@ -24,6 +24,8 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Comm_size(intracomm, &nprod);
   MPI_Comm_remote_size(intercomm_server, &nserv);
 
+  build_types();
+
   struct stat finfo;
   uint64_t bufsize = MAX_DATA;
   uint64_t file_size;
@@ -64,9 +66,9 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     memcpy(put.data, file_addr + (begin + i) * bufsize, put.count);
 
     cls_put_result_t result;
-    MPI_Send(&put, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 0, intercomm_server);
+    MPI_Send(&put, 1, mpi_op_put_t, dest_server, 0, intercomm_server);
 
-    MPI_Recv(&result, sizeof(cls_put_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+    MPI_Recv(&result, 1, mpi_put_result_t, dest_server, 0, intercomm_server,
              MPI_STATUS_IGNORE);
 
     prod_time += result.time;
@@ -80,12 +82,14 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   cls_put_result_t result;
   cls_op_put_t quit;
   quit.quit = 1;
-  MPI_Send(&quit, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 0, intercomm_server);
+  MPI_Send(&quit, 1, mpi_op_put_t, dest_server, 0, intercomm_server);
 
-  MPI_Recv(&result, sizeof(cls_put_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+  MPI_Recv(&result, 1, mpi_put_result_t, dest_server, 0, intercomm_server,
       MPI_STATUS_IGNORE);
 
   fprintf(stderr, "Producer rank %d time: %lf\n", rank, prod_time);
+
+  destroy_types();
 }
 
 void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
@@ -95,6 +99,8 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Comm_rank(intracomm, &rank);
   MPI_Comm_size(intracomm, &ncons);
   MPI_Comm_remote_size(intercomm_server, &nserv);
+
+  build_types();
 
   // Distribute the consumers evenly between servers
   int32_t dest_server = rank % nserv;
@@ -140,9 +146,9 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     }
 
     cls_get_result_t result;
-    MPI_Send(&get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 0, intercomm_server);
+    MPI_Send(&get, 1, mpi_op_get_t, dest_server, 0, intercomm_server);
 
-    MPI_Recv(&result, sizeof(cls_get_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+    MPI_Recv(&result, 1, mpi_get_result_t, dest_server, 0, intercomm_server,
              MPI_STATUS_IGNORE);
     cons_time += result.time;
 
@@ -158,8 +164,8 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   cls_get_result_t result;
   cls_op_get_t quit;
   quit.quit = 1;
-  MPI_Send(&quit, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 0, intercomm_server);
-  MPI_Recv(&result, sizeof(cls_get_result_t), MPI_CHAR, dest_server, 0, intercomm_server,
+  MPI_Send(&quit, 1, mpi_op_get_t, dest_server, 0, intercomm_server);
+  MPI_Recv(&result, 1, mpi_get_result_t, dest_server, 0, intercomm_server,
            MPI_STATUS_IGNORE);
   fprintf(stderr, "Consumer rank %d time: %lf\n", rank, cons_time);
 
@@ -200,5 +206,7 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     munmap(input_addr, file_size);
     close(input);
   }
+
+  destroy_types();
 }
 

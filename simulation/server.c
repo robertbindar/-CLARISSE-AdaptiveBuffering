@@ -27,8 +27,6 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
   MPI_Comm_remote_size(intercomm_producer, &nprod);
   MPI_Comm_remote_size(intercomm_consumer, &ncons);
 
-  build_types();
-
   server_comm = intracomm;
 
   char *nl = getenv("BUFFERING_NR_SERVER_LISTENERS");
@@ -67,7 +65,6 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
 
   cls_destroy_buffering(&bufservice);
   destroy_benchmarking();
-  destroy_types();
 }
 
 void *producer_handler(void *arg)
@@ -96,7 +93,7 @@ void *producer_handler(void *arg)
   double start_time, end_time;
 
   while (quit != nprod_sending) {
-    MPI_Recv(&op_put, 1, mpi_op_put_t, MPI_ANY_SOURCE, 0, lst->communicator,
+    MPI_Recv(&op_put, sizeof(cls_op_put_t), MPI_CHAR, MPI_ANY_SOURCE, 4, lst->communicator,
              &status);
     if (op_put.quit) {
       ++quit;
@@ -118,7 +115,7 @@ void *producer_handler(void *arg)
 
     result.status = (uint32_t) err;
 
-    MPI_Send(&result, 1, mpi_put_result_t, status.MPI_SOURCE, 0,
+    MPI_Send(&result, sizeof(cls_put_result_t), MPI_CHAR, status.MPI_SOURCE, 4,
              lst->communicator);
 
     pthread_mutex_lock(&g_lock);
@@ -155,7 +152,7 @@ void *consumer_handler(void *arg)
   double start_time, end_time;
 
   while (quit != ncons_sending) {
-    MPI_Recv(&op_get, 1, mpi_op_get_t, MPI_ANY_SOURCE, 0, lst->communicator,
+    MPI_Recv(&op_get, sizeof(cls_op_get_t), MPI_CHAR, MPI_ANY_SOURCE, 5, lst->communicator,
              &status);
 
     cls_get_result_t result;
@@ -171,9 +168,9 @@ void *consumer_handler(void *arg)
 
     result.time = end_time - start_time;
 
-    result.status = (uint16_t) err;
+    result.status = (uint32_t) err;
 
-    MPI_Send(&result, 1, mpi_get_result_t, status.MPI_SOURCE, 0,
+    MPI_Send(&result, sizeof(cls_get_result_t), MPI_CHAR, status.MPI_SOURCE, 5,
              lst->communicator);
 
     pthread_mutex_lock(&g_lock);

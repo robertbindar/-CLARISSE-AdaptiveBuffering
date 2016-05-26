@@ -30,7 +30,7 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
 
   // Grow allocators above the low window limit
   allocator_expand(&bufsched->allocator_md, bufsched->max_pool_size);
-  allocator_expand(&bufsched->allocator_data, bufsched->nr_free_buffers);
+  allocator_expand(&bufsched->allocator_data, bufsched->max_pool_size);
 
   // Init task queue
   task_queue_init(&bufsched->task_queue, bufsched->max_pool_size);

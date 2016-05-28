@@ -2,11 +2,11 @@
 
 export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$(pwd)/../bin/"
 
-block_size=1M
+block_size=1048576
 blocks_count=10
 input="input"
 
-dd if=/dev/urandom of=$input bs=$block_size count=$blocks_count
+dd if=/dev/urandom of=$input bs=$block_size count=$blocks_count &> /dev/null
 
 nprod=1
 ncons=1
@@ -18,7 +18,7 @@ export BUFFERING_NUMBER_OF_PRODUCERS=$nprod
 export BUFFERING_NUMBER_OF_CONSUMERS=$ncons
 export BUFFERING_NUMBER_OF_SERVERS=$nserv
 export BUFFERING_NR_SERVER_LISTENERS=$nlist
-export BUFFERING_MAX_POOL_SIZE=1331200
+export BUFFERING_MAX_POOL_SIZE=5120
 
 for file in bin/cpp_test*; do
   echo ">>>> Test $file started"

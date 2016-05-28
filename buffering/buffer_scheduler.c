@@ -7,7 +7,6 @@
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
                       uint64_t max_pool_size)
 {
-  fprintf(stderr, "maxpool: %d\n", max_pool_size);
   pthread_mutex_init(&bufsched->lock, NULL);
   pthread_cond_init(&bufsched->free_buffers_available, NULL);
 

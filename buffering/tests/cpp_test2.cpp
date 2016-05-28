@@ -29,13 +29,15 @@ std::mutex g_lock;
 uint32_t nr_consumers_finished = 0;
 uint32_t nr_producers_finished = 0;
 
+const char *input_file = NULL;
+
 void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
               uint32_t nprod)
 {
     struct stat finfo;
     uint64_t file_size;
 
-    int32_t fd = open("input", O_RDONLY);
+    int32_t fd = open(input_file, O_RDONLY);
     fstat(fd, &finfo);
     file_size = finfo.st_size;
 
@@ -116,7 +118,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
     struct stat finfo;
     uint32_t file_size;
 
-    int32_t input = open("input", O_RDONLY);
+    int32_t input = open(input_file, O_RDONLY);
     fstat(input, &finfo);
     file_size = finfo.st_size;
     close(input);
@@ -186,7 +188,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         cerr << "Consumer maximum time: " << max_time.count() << " ms" << endl;
 
         int passed = 0;
-        int32_t input = open("input", O_RDONLY);
+        int32_t input = open(input_file, O_RDONLY);
         void *input_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, input, 0);
 
         for (i = 0; i < ncons && passed >= 0; ++i) {
@@ -217,17 +219,18 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
 
 int main(int argc, char **argv)
 {
-    if (argc < 3) {
-        cerr << "Usage ./test nr_producers nr_consumers\n";
+    if (argc < 4) {
+        cerr << "Usage ./test input_file nr_producers nr_consumers\n";
         return -1;
     }
 
-    uint32_t nr_producers = atoi(argv[1]);
-    uint32_t nr_consumers = atoi(argv[2]);
+    input_file = argv[1];
+    uint32_t nr_producers = atoi(argv[2]);
+    uint32_t nr_consumers = atoi(argv[3]);
 
     uint32_t bufsize = 1024;
 
-    int32_t fd = open("input", O_RDONLY);
+    int32_t fd = open(input_file, O_RDONLY);
     struct stat finfo;
     fstat(fd, &finfo);
     uint32_t file_size = finfo.st_size;

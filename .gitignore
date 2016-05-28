@@ -1,11 +1,7 @@
 # Emacs / Vim backup and temporary files
 \#*#
 *~
-*.swp
-*.swo
-*.swn
-*.swm
-*.swl
+*.sw*
 
 # Compiled Object files
 *.slo
@@ -33,5 +29,8 @@
 # Directories
 include/
 bin/
-.swaparea/
+
+# Images (Plots)
+*.png
+*.jpg
 

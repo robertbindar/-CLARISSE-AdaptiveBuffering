@@ -1,26 +1,14 @@
 CC = mpicc
-MPIEXEC = mpiexec
-CFLAGS = -g -Wall -I ../include -O0
+CFLAGS = -g -I ../include -O3
 LDFLAGS = -L../bin/ -lpthread -lbuffering
-EXEC = producer_consumer_decoupling
+SIMULATION = producer_consumer_decoupling.c listener.c
+EXEC = mpi_test_filetransfer1.bin
 
 all: $(EXEC)
 
-$(EXEC): *.o
+mpi_test_filetransfer1.bin: mpi_test_filetransfer1.c $(SIMULATION)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
-%.o: %.c
-	$(CC) $(CFLAGS) -c $^
-run:
-	BUFFERING_NUMBER_OF_PRODUCERS=4 \
-    BUFFERING_NUMBER_OF_CONSUMERS=4 \
-    BUFFERING_NUMBER_OF_SERVERS=1 \
-    $(MPIEXEC) -n 9 ./$(EXEC)
-debug:
-	BUFFERING_NUMBER_OF_PRODUCERS=1 \
-    BUFFERING_NUMBER_OF_CONSUMERS=1 \
-    BUFFERING_NUMBER_OF_SERVERS=1 \
-    $(MPIEXEC) -n 3 xterm -e gdb ./$(EXEC)
 
 clean:
-	-rm -f *.o  *~ $(EXEC)
+	rm -f *.o  *~ $(EXEC)
 

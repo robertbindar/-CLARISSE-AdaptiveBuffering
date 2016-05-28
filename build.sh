@@ -1,27 +1,39 @@
 #! /bin/bash
 
-if [[ $1 = "clean" ]]; then
-  make clean -C buffering
-  #make clean -C simulation
-  make clean -C buffering/tests/
-  make clean -C tests/
-fi
-BINARIES=bin/
+BINARIES=bin
+SIMULATION=simulation
 INCLUDE=include/
+BUFFERING=buffering
+
+if [ $# -ge 2 ]; then
+  echo "Error: too many arguments"
+  exit -1
+else
+  if [[ $1 = "clean" ]]; then
+    make clean -C $BUFFERING
+    make clean -C $BUFFERING/tests
+    make clean -C $SIMULATION
+    rm -rf $BINARIES
+    exit 0
+  elif [ $# -eq 1 ]
+  then
+    echo "Error: the argument passed was invalid"
+    exit -1
+  fi
+fi
 
 mkdir -p $BINARIES
 mkdir -p $INCLUDE
 
-cp buffering/*.h $INCLUDE
-cp simulation/*.h $INCLUDE
+cp $BUFFERING/*.h $INCLUDE
+cp $SIMULATION/*.h $INCLUDE
 
-make -C buffering/
-mv buffering/libbuffering.so $BINARIES
+make -C $BUFFERING
+mv $BUFFERING/libbuffering.so $BINARIES/
 
-#make -C simulation/
-#mv simulation/producer_consumer_decoupling $BINARIES
+make -C $SIMULATION
+mv $SIMULATION/*.bin $BINARIES/
 
-make -C buffering/tests/
-
-make -C tests/
+make -C $BUFFERING/tests/
+mv $BUFFERING/tests/*.bin $BINARIES/
 

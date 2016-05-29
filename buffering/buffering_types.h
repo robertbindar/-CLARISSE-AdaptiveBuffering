@@ -27,7 +27,6 @@ typedef struct _cls_buf
 {
   cls_buf_handle_t handle;
   UT_hash_handle hh;
-
   cls_byte_t *data;
 
   uint32_t nr_consumers_finished;
@@ -41,3 +40,4 @@ typedef struct _cls_buf
 
   dllist_link link_mru;
 } cls_buf_t;
+

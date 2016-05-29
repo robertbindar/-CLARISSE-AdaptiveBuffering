@@ -313,8 +313,6 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
   HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
 
   return BUFFERING_SUCCESS;
-
-
 }
 
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
@@ -395,7 +393,6 @@ error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
   pthread_mutex_unlock(&found->lock);
 
   return BUFFERING_SUCCESS;
-
 }
 
 void print_buffers(cls_buffering_t *bufservice)

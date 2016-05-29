@@ -113,7 +113,7 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
 
 
 8.
-```
+```C
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                           const cls_size_t *offsetv, const cls_size_t *countv,
                           const cls_size_t vector_size, cls_byte_t *data,

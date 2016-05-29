@@ -6,11 +6,12 @@ providing an adaptive buffering module.
 
 [1] http://www.arcos.inf.uc3m.es/~florin/clarisse/
 
+
+
 ## Adaptive buffering API
 
 
-1. cls_buf_handle_t
-identified by a global_descr + offset
+1. buffer handle: identified by a global_descr and offset
 
 ```C
 typedef struct _cls_buf_handle
@@ -20,8 +21,7 @@ typedef struct _cls_buf_handle
 } cls_buf_handle_t;
 ```
 
-2. cls_buf_t 
-buffer structure
+2. buffer structure
 
 ```C
 typedef struct _cls_buf
@@ -43,31 +43,29 @@ typedef struct _cls_buf
 } cls_buf_t;
 ```
 
-3. 
+3.
 ```C
 error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
-    const cls_size_t offset,
-                   cls_byte_t *data, const cls_size_t count,
-    const cls_size_t nr_consumers);
+                   const cls_size_t offset, cls_byte_t *data, const cls_size_t count,
+                   const cls_size_t nr_consumers);
 ```
 
-called by consumers
-blocks if the buffer has not been updated by all participants
-nr_consumers are allowed to read from the buffer concurrently
-can retrieve the buffer from memory or disk
+- called by consumers
+- blocks if the buffer has not been updated by all participants
+- nr_consumers are allowed to read from the buffer concurrently
+- can retrieve the buffer from memory or disk
 
-4. 
+4.
 ```C
 error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
-    const cls_size_t offset, const cls_byte_t *data, const cls_size_t count);
+                   const cls_size_t offset, const cls_byte_t *data,
+                   const cls_size_t count);
 ```
 
-called by producers
-writes data to a buffer, only one producer at a time can write the buffer
-creates the buffer if it does not exist
-if the memory is full
-first, try to allocate more
-if not possible, save most-recently “used and updated by all participants” to disk
+- called by producers
+- writes data to a buffer, only one producer at a time can write the buffer
+- creates the buffer if it does not exist
+- if the memory is full save most-recently “used and updated by all participants” to disk
 
 
 5. 

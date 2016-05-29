@@ -70,7 +70,7 @@ static inline void mrucache_remove(buffer_scheduler_t *bufsched, cls_buf_t *buf)
   pthread_mutex_unlock(&bufsched->lock);
 }
 
-void copy_buf_handle(cls_buf_handle_t *dest, cls_buf_handle_t *src)
+void copy_buf_handle(cls_buf_handle_t *dest, const cls_buf_handle_t *src)
 {
   memset(dest, 0, sizeof(cls_buf_handle_t));
   dest->offset = src->offset;

@@ -32,15 +32,26 @@ error_code cls_init_buffering(cls_buffering_t *bufservice, cls_size_t bsize,
 extern "C" {
 #endif
 
-error_code cls_get(cls_buffering_t *bufservice, cls_buf_handle_t bh, cls_size_t offset,
-                   cls_byte_t *data, cls_size_t count, cls_size_t nr_consumers);
+error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
+                   cls_byte_t *data, const cls_size_t count, const cls_size_t nr_consumers);
 
-error_code cls_put(cls_buffering_t *bufservice, cls_buf_handle_t bh, cls_size_t offset,
-                   const cls_byte_t *data, cls_size_t count);
+error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
+                   const cls_byte_t *data, const cls_size_t count);
 
-error_code cls_put_all(cls_buffering_t *bufservice, cls_buf_handle_t bh,
-                       cls_size_t offset, const cls_byte_t *data,
-                       cls_size_t count, uint32_t participants);
+error_code cls_put_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
+                       const cls_size_t offset, const cls_byte_t *data,
+                       const cls_size_t count, const uint32_t nr_participants);
+
+error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data);
+
+error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
+                              const uint32_t nr_participants);
+
+error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
+                          const uint32_t nr_participants);
 
 error_code cls_destroy_buffering(cls_buffering_t *bufservice);
 

@@ -100,9 +100,9 @@ error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh
 7.
 ```C
 error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
-const cls_size_t *offsetv, const cls_size_t *countv,
-const cls_size_t vector_size, const cls_byte_t *data,
-const uint32_t nr_participants);
+                              const cls_size_t *offsetv, const cls_size_t *countv,
+                              const cls_size_t vector_size, const cls_byte_t *data,
+                              const uint32_t nr_participants);
 ```
 
 - called by producers
@@ -115,8 +115,8 @@ const uint32_t nr_participants);
 8.
 ```
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
-    const cls_size_t *offsetv, const cls_size_t *countv,
-    const cls_size_t vector_size, cls_byte_t *data,
+                          const cls_size_t *offsetv, const cls_size_t *countv,
+                          const cls_size_t vector_size, cls_byte_t *data,
                           const uint32_t nr_consumers);
 ```
 

@@ -10,45 +10,52 @@
 #include <pthread.h>
 #include <dirent.h>
 
-void swapper_init(buffer_swapper_t *sw, uint64_t bufsize)
+error_code swapper_init(buffer_swapper_t *sw, uint64_t bufsize)
 {
   sprintf(sw->dirname, "%s", ".swaparea/");
   sw->bufsize = bufsize;
   sw->entries = NULL;
   sw->entries_count = 0;
-  pthread_mutex_init(&sw->lock, NULL);
+  HANDLE_ERR(pthread_mutex_init(&sw->lock, NULL), BUFSWAPPER_LOCK_ERR);
   dllist_init(&sw->disk_free_offsets);
 
-  mkdir(sw->dirname, S_IRWXU);
+  HANDLE_ERR(mkdir(sw->dirname, S_IRWXU) < 0, BUFSWAPPER_SYSCALL_ERR);
+
+  return BUFFERING_SUCCESS;
 }
 
-void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
+error_code swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf)
 {
   char filename[MAX_FILENAME_SIZE];
   sprintf(filename, "%s%" PRIu32, sw->dirname, buf->handle.global_descr);
 
-  pthread_mutex_lock(&sw->lock);
+  HANDLE_ERR(pthread_mutex_lock(&sw->lock), BUFSWAPPER_LOCK_ERR);
+
   int32_t fd = open(filename, O_RDONLY);
+  HANDLE_ERR(fd < 0, BUFSWAPPER_BADIO_ERR);
 
   swap_entry_t *found;
   HASH_FIND_PTR(sw->entries, &buf, found);
 
-  lseek(fd, found->file_offset, SEEK_SET);
+  HANDLE_ERR(lseek(fd, found->file_offset, SEEK_SET) < 0, BUFSWAPPER_BADIO_ERR);
 
-  // FIXME: avoid short reads
-  read(fd, buf->data, sw->bufsize);
+  HANDLE_ERR(read(fd, buf->data, sw->bufsize) != sw->bufsize, BUFSWAPPER_BADIO_ERR);
 
   HASH_DEL(sw->entries, found);
   sw->entries_count--;
 
   free_off_t *f = malloc(sizeof(free_off_t));
+  HANDLE_ERR(!f, BUFSWAPPER_BADALLOC_ERR);
+
   f->offset = found->file_offset;
   dllist_iat(&sw->disk_free_offsets, &f->link);
 
   free(found);
-  pthread_mutex_unlock(&sw->lock);
+  HANDLE_ERR(pthread_mutex_unlock(&sw->lock), BUFSWAPPER_LOCK_ERR);
 
-  close(fd);
+  HANDLE_ERR(close(fd) < 0, BUFSWAPPER_BADIO_ERR);
+
+  return BUFFERING_SUCCESS;
 }
 
 cls_buf_t *swapper_top(buffer_swapper_t *sw)
@@ -70,14 +77,18 @@ cls_buf_t *swapper_top(buffer_swapper_t *sw)
   return buf;
 }
 
-void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf)
+error_code swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf)
 {
   swap_entry_t *entry = calloc(1, sizeof(swap_entry_t));
+  HANDLE_ERR(!entry, BUFSWAPPER_BADALLOC_ERR);
+
   char filename[MAX_FILENAME_SIZE];
   sprintf(filename, "%s%" PRIu32, sw->dirname, buf->handle.global_descr);
 
-  pthread_mutex_lock(&sw->lock);
+  HANDLE_ERR(pthread_mutex_lock(&sw->lock), BUFSWAPPER_LOCK_ERR);
+
   int32_t fd = open(filename, O_RDWR | O_CREAT, S_IRWXU);
+  HANDLE_ERR(fd < 0, BUFSWAPPER_BADIO_ERR);
 
   if (!dllist_is_empty(&sw->disk_free_offsets)) {
     dllist_link *tmp = dllist_rem_head(&sw->disk_free_offsets);
@@ -88,15 +99,16 @@ void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf)
     entry->file_offset = lseek(fd, 0, SEEK_END);
   }
 
-  // FIXME: avoid short writes
-  write(fd, buf->data, sw->bufsize);
-  close(fd);
+  HANDLE_ERR(write(fd, buf->data, sw->bufsize) != sw->bufsize, BUFSWAPPER_BADIO_ERR);
+  HANDLE_ERR(close(fd) < 0, BUFSWAPPER_BADIO_ERR);
 
   entry->buf = buf;
   HASH_ADD_PTR(sw->entries, buf, entry);
   sw->entries_count++;
 
-  pthread_mutex_unlock(&sw->lock);
+  HANDLE_ERR(pthread_mutex_unlock(&sw->lock), BUFSERVICE_LOCK_ERR);
+
+  return BUFFERING_SUCCESS;
 }
 
 uint64_t swapper_getcount(buffer_swapper_t *sw)
@@ -108,7 +120,7 @@ uint64_t swapper_getcount(buffer_swapper_t *sw)
   return count;
 }
 
-void swapper_destroy(buffer_swapper_t *sw)
+error_code swapper_destroy(buffer_swapper_t *sw)
 {
   swap_entry_t *current, *tmp;
   HASH_ITER(hh, sw->entries, current, tmp) {
@@ -122,14 +134,12 @@ void swapper_destroy(buffer_swapper_t *sw)
     free(f);
   }
 
-  pthread_mutex_destroy(&sw->lock);
+  HANDLE_ERR(pthread_mutex_destroy(&sw->lock), BUFSWAPPER_LOCK_ERR);
 
   // Delete filesystem entries for swap area
   DIR *dp;
   struct dirent *ep;
-  if (!(dp = opendir(sw->dirname))) {
-    return;
-  }
+  HANDLE_ERR(!(dp = opendir(sw->dirname)), BUFSWAPPER_BADIO_ERR);
 
   struct stat status;
   char filename[MAX_FILENAME_SIZE];
@@ -140,9 +150,11 @@ void swapper_destroy(buffer_swapper_t *sw)
       continue;
     }
 
-    unlink(filename);
+    HANDLE_ERR(unlink(filename) < 0, BUFSWAPPER_BADIO_ERR);
   }
 
-  rmdir(sw->dirname);
+  HANDLE_ERR(rmdir(sw->dirname), BUFSWAPPER_BADIO_ERR);
+
+  return BUFFERING_SUCCESS;
 }
 

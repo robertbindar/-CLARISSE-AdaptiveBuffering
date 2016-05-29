@@ -47,9 +47,9 @@ void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
 uint8_t sched_mark_consumed(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
-void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf);
+error_code sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 
 void copy_buf_handle(cls_buf_handle_t *dest, const cls_buf_handle_t *src);
 
-void destroy_buffer(cls_buf_t *buff);
+error_code destroy_buffer(cls_buf_t *buff);
 

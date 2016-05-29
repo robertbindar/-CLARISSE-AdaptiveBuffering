@@ -7,8 +7,8 @@
 error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
                       uint64_t max_pool_size)
 {
-  pthread_mutex_init(&bufsched->lock, NULL);
-  pthread_cond_init(&bufsched->free_buffers_available, NULL);
+  HANDLE_ERR(pthread_mutex_init(&bufsched->lock, NULL), BUFSCHEDULER_LOCK_ERR);
+  HANDLE_ERR(pthread_cond_init(&bufsched->free_buffers_available, NULL), BUFSCHEDULER_LOCK_ERR);
 
   bufsched->buffer_size = buffer_size;
   bufsched->nr_assigned_buffers = 0;
@@ -91,11 +91,13 @@ static void init_buffer(cls_buf_t *buffer)
   pthread_cond_init(&buffer->cond_state, NULL);
 }
 
-void destroy_buffer(cls_buf_t *buff)
+error_code destroy_buffer(cls_buf_t *buff)
 {
-  pthread_cond_destroy(&buff->cond_state);
-  pthread_mutex_destroy(&buff->lock);
-  pthread_rwlock_destroy(&buff->rwlock_swap);
+  HANDLE_ERR(pthread_cond_destroy(&buff->cond_state), BUFSCHEDULER_LOCK_ERR);
+  HANDLE_ERR(pthread_mutex_destroy(&buff->lock), BUFSCHEDULER_LOCK_ERR);
+  HANDLE_ERR(pthread_rwlock_destroy(&buff->rwlock_swap), BUFSCHEDULER_LOCK_ERR);
+
+  return BUFFERING_SUCCESS;
 }
 
 static void swapout_buffer(void *arg)
@@ -382,13 +384,15 @@ uint8_t sched_mark_consumed(buffer_scheduler_t *bufsched, cls_buf_t *buf)
   return 1;
 }
 
-void sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf)
+error_code sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf)
 {
   task_t *task = create_task(&bufsched->task_queue, (callback_t) swapin_buffer, TASK_OWN);
   task->bufsched = bufsched;
   task->buffer = buf;
   submit_task(&bufsched->task_queue, task);
   buf->state = BUF_QUEUED_SWAPIN;
+
+  return BUFFERING_SUCCESS;
 }
 
 error_code sched_destroy(buffer_scheduler_t *bufsched)

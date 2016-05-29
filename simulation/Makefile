@@ -1,5 +1,5 @@
 CC = mpicc
-CFLAGS = -g -I ../include -O3
+CFLAGS = -g -I ../include -O3 -Wno-unused-result
 LDFLAGS = -L../bin/ -lpthread -lbuffering
 SIMULATION = producer_consumer_decoupling.c listener.c
 EXEC = mpi_test_filetransfer1.bin

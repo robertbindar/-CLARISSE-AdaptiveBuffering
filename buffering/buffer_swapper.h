@@ -4,6 +4,7 @@
 #include "uthash.h"
 #include "list.h"
 #include "buffering_types.h"
+#include "errors.h"
 
 #define MAX_FILENAME_SIZE 256
 
@@ -30,15 +31,15 @@ typedef struct _buffer_swapper
   pthread_mutex_t lock;
 } buffer_swapper_t;
 
-void swapper_init(buffer_swapper_t *sw, uint64_t bufsize);
+error_code swapper_init(buffer_swapper_t *sw, uint64_t bufsize);
 
-void swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf);
+error_code swapper_swapin(buffer_swapper_t *sw, cls_buf_t *buf);
 
-void swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf);
+error_code swapper_swapout(buffer_swapper_t *sw, cls_buf_t *buf);
 
 cls_buf_t *swapper_top(buffer_swapper_t *sw);
 
 uint64_t swapper_getcount(buffer_swapper_t *sw);
 
-void swapper_destroy(buffer_swapper_t *sw);
+error_code swapper_destroy(buffer_swapper_t *sw);
 

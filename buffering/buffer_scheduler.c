@@ -334,13 +334,8 @@ error_code sched_alloc_md(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_
   return BUFFERING_SUCCESS;
 }
 
-error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
+error_code sched_free_unsafe(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
-  if (!sched_mark_consumed(bufsched, buffer)) {
-    buffer->state = BUF_RELEASED;
-    return BUFFERING_SUCCESS;
-  }
-
   allocator_dealloc(&bufsched->allocator_data, (void*) buffer->data);
 
   destroy_buffer(buffer);
@@ -363,6 +358,16 @@ error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
   pthread_mutex_unlock(&bufsched->lock);
 
   return BUFFERING_SUCCESS;
+}
+
+error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
+{
+  if (!sched_mark_consumed(bufsched, buffer)) {
+    buffer->state = BUF_RELEASED;
+    return BUFFERING_SUCCESS;
+  }
+
+  return sched_free_unsafe(bufsched, buffer);
 }
 
 void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf)

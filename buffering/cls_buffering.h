@@ -53,6 +53,16 @@ error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh
                           const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
                           const uint32_t nr_participants);
 
+error_code cls_get_noswap(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data, cls_byte_t **result,
+                          const uint32_t nr_consumers);
+
+error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
+                              const uint32_t nr_participants);
+
+error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle);
+
 error_code cls_destroy_buffering(cls_buffering_t *bufservice);
 
 void print_buffers(cls_buffering_t *bufservice);

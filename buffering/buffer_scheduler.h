@@ -42,6 +42,7 @@ error_code sched_destroy(buffer_scheduler_t *bufsched);
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
 error_code sched_alloc_md(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh);
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
+error_code sched_free_unsafe(buffer_scheduler_t *bufsched, cls_buf_t *buffer);
 
 void sched_mark_updated(buffer_scheduler_t *bufsched, cls_buf_t *buf);
 

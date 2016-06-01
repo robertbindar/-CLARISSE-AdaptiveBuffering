@@ -395,6 +395,120 @@ error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
   return BUFFERING_SUCCESS;
 }
 
+error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
+                              const uint32_t nr_participants)
+{
+  HANDLE_ERR(!data || !offsetv || !countv || vector_size <= 0 || nr_participants <= 0,
+             BUFFERING_INVALIDARGS);
+
+  cls_buf_t *found = NULL;
+
+  cls_buf_handle_t bh;
+  copy_buf_handle(&bh, &buf_handle);
+
+  HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // Check whether the requested buffer is allocated or not.
+  HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
+  if (!found) {
+    // Request a buffer from the scheduler
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
+
+    // Add newly allocated buffer to hash
+    HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
+  }
+
+  HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
+  if (!found->data) {
+    sched_alloc(&bufservice->buf_sched, found);
+  }
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
+
+  // Write the data to buffer
+  cls_size_t i = 0;
+  for (i = 0; i < vector_size; ++i) {
+    memcpy(found->data + offsetv[i], data, countv[i]);
+  }
+
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
+  found->nr_coll_participants++;
+  if (found->nr_coll_participants == nr_participants) {
+    // Mark the buffer as being ready to be read
+    found->state = BUF_UPDATED;
+    // Notify any waiting consumer
+    pthread_cond_broadcast(&found->cond_state);
+  }
+  HANDLE_ERR(pthread_mutex_unlock(&found->lock), BUFSERVICE_LOCK_ERR);
+
+  return BUFFERING_SUCCESS;
+}
+
+error_code cls_get_noswap(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data, cls_byte_t **result,
+                          const uint32_t nr_consumers)
+{
+  HANDLE_ERR(!data || !offsetv || !countv || vector_size <= 0 || nr_consumers <= 0,
+             BUFFERING_INVALIDARGS);
+
+  cls_buf_t *found = NULL;
+
+  cls_buf_handle_t bh;
+  copy_buf_handle(&bh, &buf_handle);
+
+  HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // Check whether the requested buffer is allocated or not.
+  HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
+  if (!found) {
+    // Request a buffer from the scheduler
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
+
+    // Add newly allocated buffer to hash
+    HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
+  }
+
+  HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // Wait until the buffer is written by producers
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
+  while (found->state == BUF_ALLOCATED) {
+    pthread_cond_wait(&found->cond_state, &found->lock);
+  }
+  pthread_mutex_unlock(&found->lock);
+
+  cls_size_t i = 0;
+  for (i = 0; i < vector_size; ++i) {
+    result[i] = found->data + offsetv[i];
+  }
+
+  return BUFFERING_SUCCESS;
+}
+
+error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle)
+{
+  cls_buf_t *found = NULL;
+
+  cls_buf_handle_t bh;
+  copy_buf_handle(&bh, &buf_handle);
+
+  HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // Check whether the requested buffer is allocated or not.
+  HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
+  if (!found) {
+    HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+    return BUFFERING_INVALIDARGS;
+  }
+
+  HASH_DEL(bufservice->buffers, found);
+  HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  return sched_free_unsafe(&bufservice->buf_sched, found);
+}
+
 void print_buffers(cls_buffering_t *bufservice)
 {
   cls_buf_t *current, *tmp;

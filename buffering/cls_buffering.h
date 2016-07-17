@@ -33,7 +33,10 @@ extern "C" {
 #endif
 
 error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
-                   cls_byte_t *data, const cls_size_t count, const cls_size_t nr_consumers);
+                   cls_byte_t *data, const cls_size_t count);
+
+error_code cls_get_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
+                       cls_byte_t *data, const cls_size_t count, const cls_size_t nr_consumers);
 
 error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
                    const cls_byte_t *data, const cls_size_t count);
@@ -50,16 +53,19 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
                               const uint32_t nr_participants);
 
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
-                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
-                          const uint32_t nr_participants);
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data);
 
-error_code cls_get_noswap(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
-                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data, cls_byte_t **result,
-                          const uint32_t nr_consumers);
-
-error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
-                              const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
+error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
                               const uint32_t nr_participants);
+
+error_code cls_get_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                                     const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t **result,
+                                     const uint32_t nr_consumers);
+
+error_code cls_put_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                                     const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
+                                     const uint32_t nr_participants);
 
 error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle);
 

@@ -360,7 +360,7 @@ void *consumer_handler(void *arg)
       start_time = end_time = 0;
     } else {
       start_time = MPI_Wtime();
-      err = cls_get(&bufservice, op_get.handle, op_get.offset, result.data, op_get.count,
+      err = cls_get_all(&bufservice, op_get.handle, op_get.offset, result.data, op_get.count,
                     op_get.nr_participants);
       end_time = MPI_Wtime();
     }

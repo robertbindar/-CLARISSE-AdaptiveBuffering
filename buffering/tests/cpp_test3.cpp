@@ -150,7 +150,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         }
 
         auto start_time = steady_clock::now();
-        cls_get(bufservice, handle, 0, data, count, 1);
+        cls_get(bufservice, handle, 0, data, count);
         auto end_time = steady_clock::now();
 
 

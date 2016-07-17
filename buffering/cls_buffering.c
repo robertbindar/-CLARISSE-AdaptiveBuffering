@@ -40,8 +40,8 @@ error_code cls_destroy_buffering(cls_buffering_t *bufservice)
 }
 
 
-error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t offset,
-                   cls_byte_t *data, const cls_size_t count, const cls_size_t nr_consumers)
+error_code cls_get_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t offset,
+                       cls_byte_t *data, const cls_size_t count, const cls_size_t nr_consumers)
 {
   HANDLE_ERR(!data || nr_consumers <= 0, BUFFERING_INVALIDARGS);
 
@@ -113,6 +113,12 @@ error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handl
   pthread_mutex_unlock(&found->lock);
 
   return BUFFERING_SUCCESS;
+}
+
+error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t offset,
+                   cls_byte_t *data, const cls_size_t count)
+{
+  return cls_get_all(bufservice, bh, offset, data, count, 1);
 }
 
 error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t offset,
@@ -243,7 +249,7 @@ error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
   // Write the data to buffer
   cls_size_t i = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data, countv[i]);
+    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
   }
 
   // Mark the buffer as being ready to be read
@@ -297,7 +303,7 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
   // Write the data to buffer
   cls_size_t i = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data, countv[i]);
+    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
   }
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
@@ -315,9 +321,9 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
   return BUFFERING_SUCCESS;
 }
 
-error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
-                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
-                          const uint32_t nr_consumers)
+error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
+                              const uint32_t nr_consumers)
 {
   HANDLE_ERR(!data || !offsetv || !countv || vector_size <= 0 || nr_consumers <= 0,
              BUFFERING_INVALIDARGS);
@@ -368,7 +374,7 @@ error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
   // Read data from buffer
   cls_size_t i = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(data, found->data + offsetv[i], countv[i]);
+    memcpy(data + offsetv[i], found->data + offsetv[i], countv[i]);
   }
 
   pthread_mutex_lock(&found->lock);
@@ -395,9 +401,17 @@ error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
   return BUFFERING_SUCCESS;
 }
 
-error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
-                              const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
-                              const uint32_t nr_participants)
+
+error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data)
+{
+  return cls_get_vector_all(bufservice, bh, offsetv, countv, vector_size, data, 1);
+}
+
+error_code cls_put_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle,
+                                     const cls_size_t *offsetv, const cls_size_t *countv,
+                                     const cls_size_t vector_size, const cls_byte_t *data,
+                                     const uint32_t nr_participants)
 {
   HANDLE_ERR(!data || !offsetv || !countv || vector_size <= 0 || nr_participants <= 0,
              BUFFERING_INVALIDARGS);
@@ -430,7 +444,7 @@ error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_
   // Write the data to buffer
   cls_size_t i = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data, countv[i]);
+    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
   }
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
@@ -446,11 +460,12 @@ error_code cls_put_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_
   return BUFFERING_SUCCESS;
 }
 
-error_code cls_get_noswap(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
-                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data, cls_byte_t **result,
-                          const uint32_t nr_consumers)
+error_code cls_get_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle,
+                                     const cls_size_t *offsetv, const cls_size_t *countv,
+                                     const cls_size_t vector_size, cls_byte_t **result,
+                                     const uint32_t nr_consumers)
 {
-  HANDLE_ERR(!data || !offsetv || !countv || vector_size <= 0 || nr_consumers <= 0,
+  HANDLE_ERR(!offsetv || !countv || vector_size <= 0 || nr_consumers <= 0,
              BUFFERING_INVALIDARGS);
 
   cls_buf_t *found = NULL;

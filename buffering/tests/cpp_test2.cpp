@@ -149,7 +149,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         }
 
         auto start_time = steady_clock::now();
-        cls_get(bufservice, handle, 0, data, count, ncons);
+        cls_get_all(bufservice, handle, 0, data, count, ncons);
         auto end_time = steady_clock::now();
 
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);

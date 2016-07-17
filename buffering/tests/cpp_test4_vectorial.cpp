@@ -65,7 +65,6 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         } else {
             size = bufsize;
         }
-        std::copy(file_addr + i * bufsize, file_addr + i * bufsize + size, buf);
 
         uint32_t count = size / nprod;
         if (rank == nprod - 1) {
@@ -73,7 +72,11 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
             count = size - (nprod - 1) * (size / nprod);
         }
 
-        uint32_t s = 0;
+        uint32_t offset = rank * (size / nprod);
+
+        std::copy(file_addr + i * bufsize + offset, file_addr + i * bufsize + offset + count, buf);
+
+        uint32_t s = offset;
         uint32_t c = count / VEC_SIZE;
 
         // Populate offsets vectors
@@ -137,7 +140,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
     close(input);
 
     char filename[100];
-    sprintf(filename, "%s%d", "output", rank);
+    sprintf(filename, "%s", "output");
 
     int32_t fd = open(filename, O_WRONLY | O_CREAT, S_IRWXU);
     ftruncate(fd, file_size);
@@ -169,7 +172,9 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
             size = count - (ncons - 1) * (count / ncons);
         }
 
-        uint32_t s = 0;
+        uint32_t offset = rank * (count / ncons);
+
+        uint32_t s = offset;
         uint32_t c = size / VEC_SIZE;
 
         // Populate offsets vectors
@@ -181,7 +186,7 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         countv[VEC_SIZE - 1] = size - c * (VEC_SIZE - 1);
 
         auto start_time = steady_clock::now();
-        cls_get_vector(bufservice, handle, offsetv, countv, VEC_SIZE, data, ncons);
+        cls_get_vector_all(bufservice, handle, offsetv, countv, VEC_SIZE, data, ncons);
         auto end_time = steady_clock::now();
 
 #ifdef _BENCHMARKING
@@ -194,9 +199,8 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         elapsed_time += duration_cast<milliseconds>(end_time - start_time);
 
         for (uint32_t j = 0; j < VEC_SIZE; ++j) {
-            lseek(fd, j * bufsize + offsetv[j], SEEK_SET);
+            lseek(fd, i * bufsize + offsetv[j], SEEK_SET);
             write(fd, data + offsetv[j], countv[j]);
-            ++j;
         }
         ++i;
     }
@@ -221,28 +225,26 @@ void consumer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
         cerr << "Consumer minimum time: " << min_time.count() << " ms" << endl;
         cerr << "Consumer maximum time: " << max_time.count() << " ms" << endl;
 
-        int passed = 0;
+        int passed = 1;
         int32_t input = open(input_file, O_RDONLY);
         void *input_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, input, 0);
 
-        for (i = 0; i < ncons && passed >= 0; ++i) {
-            char file[100];
-            sprintf(file, "%s%d", "output", i);
+        char file[100];
+        sprintf(file, "%s", "output");
 
-            int32_t output = open(file, O_RDONLY);
-            void *output_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, output, 0);
+        int32_t output = open(file, O_RDONLY);
+        void *output_addr = mmap(NULL, file_size, PROT_READ, MAP_PRIVATE, output, 0);
 
-            if (memcmp(input_addr, output_addr, file_size)) {
-                passed = -1;
-                cerr << "--Test " << __FILE__ << " failed: " << file << " does not match input\n";
-            }
-
-            close(output);
-            munmap(output_addr, file_size);
-            unlink(file);
+        if (memcmp(input_addr, output_addr, file_size)) {
+            passed = 0;
+            cerr << "--Test " << __FILE__ << " failed: " << file << " does not match input\n";
         }
 
-        if (passed >= 0) {
+        close(output);
+        munmap(output_addr, file_size);
+        unlink(file);
+
+        if (passed) {
             cerr << "++Test " << __FILE__ << " passed\n";
         }
 

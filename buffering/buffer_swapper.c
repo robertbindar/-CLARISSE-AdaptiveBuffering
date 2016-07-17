@@ -153,6 +153,8 @@ error_code swapper_destroy(buffer_swapper_t *sw)
     HANDLE_ERR(unlink(filename) < 0, BUFSWAPPER_BADIO_ERR);
   }
 
+  HANDLE_ERR(closedir(dp), BUFSWAPPER_BADIO_ERR);
+
   HANDLE_ERR(rmdir(sw->dirname), BUFSWAPPER_BADIO_ERR);
 
   return BUFFERING_SUCCESS;

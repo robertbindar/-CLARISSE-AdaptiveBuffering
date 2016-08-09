@@ -23,29 +23,6 @@ typedef struct _cls_buf_handle
 ```
 
 2.
-buffer structure
-
-```C
-typedef struct _cls_buf
-{
-  cls_buf_handle_t handle;
-  UT_hash_handle hh;
-  cls_byte_t *data;
-
-  uint32_t nr_consumers_finished;
-  uint32_t nr_coll_participants;
-
-  pthread_mutex_t lock;
-  buffer_state_t state;
-  pthread_cond_t cond_state;
-
-  pthread_rwlock_t rwlock_swap;
-
-  dllist_link link_mru;
-} cls_buf_t;
-```
-
-3.
 ```C
 error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                    const cls_size_t offset, cls_byte_t *data, const cls_size_t count,
@@ -57,7 +34,7 @@ error_code cls_get(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
 - nr_consumers are allowed to read from the buffer concurrently
 - can retrieve the buffer from memory or disk
 
-4.
+3.
 ```C
 error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                    const cls_size_t offset, const cls_byte_t *data,
@@ -70,7 +47,7 @@ error_code cls_put(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
 - if the memory is full save most-recently “used and updated by all participants” to disk
 
 
-5.
+4.
 ```C
 error_code cls_put_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                        const cls_size_t offset, const cls_byte_t *data,
@@ -83,7 +60,7 @@ error_code cls_put_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
 - creates the buffer if it does not exist
 - if the memory is full, save most-recently “used and updated by all participants” to disk
 
-6.
+5.
 ```C
 error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                           const cls_size_t *offsetv, const cls_size_t *countv,
@@ -97,7 +74,7 @@ error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh
 - if the memory is full, save most-recently “used and updated by all participants” to disk
 
 
-7.
+6.
 ```C
 error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                               const cls_size_t *offsetv, const cls_size_t *countv,
@@ -112,7 +89,7 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
 - if the memory is full, save most-recently “used and updated by all participants” to disk
 
 
-8.
+7.
 ```C
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh,
                           const cls_size_t *offsetv, const cls_size_t *countv,

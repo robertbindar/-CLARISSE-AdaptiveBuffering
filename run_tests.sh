@@ -26,7 +26,7 @@ for file in bin/cpp_test*; do
   echo ">>>> Test $file finished"
 done
 
-for file in bin/mpi_test_*; do
+for file in bin/mpi_*; do
   echo ">>>> Test $file started"
   mpiexec -n $(($nprod + $ncons + $nserv)) ./$file $input
   echo ">>>> Test $file finished"

@@ -8,6 +8,13 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
                       uint64_t max_pool_size)
 {
   bufsched->buffer_size = buffer_size;
+  bufsched->max_pool_size = max_pool_size;
+
+  allocator_init(&bufsched->allocator_md, sizeof(cls_buf_t), bufsched->max_pool_size);
+  allocator_init(&bufsched->allocator_data, buffer_size, bufsched->nr_free_buffers);
+
+  allocator_expand(&bufsched->allocator_md, bufsched->max_pool_size);
+  allocator_expand(&bufsched->allocator_data, bufsched->max_pool_size);
 
   return BUFFERING_SUCCESS;
 }
@@ -44,15 +51,14 @@ error_code destroy_buffer(cls_buf_t *buff)
 
 error_code sched_alloc(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
-
-  buffer->data = malloc(bufsched->buffer_size);
+  buffer->data = allocator_alloc(&bufsched->allocator_data);
 
   return BUFFERING_SUCCESS;
 }
 
 error_code sched_alloc_md(buffer_scheduler_t *bufsched, cls_buf_t **buffer, cls_buf_handle_t bh)
 {
-  *buffer = (cls_buf_t*) malloc(sizeof(cls_buf_t));
+  *buffer = (cls_buf_t*) allocator_alloc(&bufsched->allocator_md);
   init_buffer(*buffer);
   copy_buf_handle(&(*buffer)->handle, &bh);
 
@@ -66,9 +72,9 @@ error_code sched_free_unsafe(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 
 error_code sched_free(buffer_scheduler_t *bufsched, cls_buf_t *buffer)
 {
-  free(buffer->data);
+  allocator_dealloc(&bufsched->allocator_data, (void*) buffer->data);
   destroy_buffer(buffer);
-  free(buffer);
+  allocator_dealloc(&bufsched->allocator_md, (void*) buffer);
   return BUFFERING_SUCCESS;
 }
 
@@ -88,6 +94,9 @@ error_code sched_swapin(buffer_scheduler_t *bufsched, cls_buf_t *buf)
 
 error_code sched_destroy(buffer_scheduler_t *bufsched)
 {
+  allocator_destroy(&bufsched->allocator_md);
+  allocator_destroy(&bufsched->allocator_data);
+
   return BUFFERING_SUCCESS;
 }
 

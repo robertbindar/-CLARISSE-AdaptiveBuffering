@@ -26,13 +26,12 @@ for file in bin/cpp_test*; do
   echo ">>>> Test $file finished"
 done
 
-for file in bin/mpi_test_*; do
+for file in bin/mpi_*; do
   echo ">>>> Test $file started"
+  ulimit -s unlimited
   mpiexec -n $(($nprod + $ncons + $nserv)) ./$file $input
   echo ">>>> Test $file finished"
 done
-ulimit -s unlimited
-mpiexec -n $(($nprod + $ncons + $nserv)) ./bin/mpi_decoupled_filetransfer.bin $input
 
 diff input output
 

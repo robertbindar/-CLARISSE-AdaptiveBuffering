@@ -16,8 +16,6 @@
 #include <chrono>
 #include "cls_buffering.h"
 
-#define _BENCHMARKING
-
 #ifdef _BENCHMARKING
 #include "benchmarking.h"
 #endif

@@ -13,6 +13,10 @@
 #include "cls_buffering.h"
 
 #define MAX_DATA 1048576
+#define BURST_WAIT 200000
+#define BURST_COUNT 30
+
+#define _BENCHMARKING
 
 double prod_time = 0;
 double cons_time = 0;
@@ -73,8 +77,6 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   cls_op_put_t quit;
   quit.quit = 1;
   MPI_Send(&quit, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 4, intercomm_server);
-
-  fprintf(stderr, "Producer rank %d time: %lf\n", rank, prod_time);
 }
 
 void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
@@ -146,11 +148,11 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);
 
   close(fd);
-
-  fprintf(stderr, "Consumer rank %d time: %lf\n", rank, cons_time);
 }
 
+#ifdef _BENCHMARKING
 #include "benchmarking.h"
+#endif
 
 #define DEFAULT_NR_LISTENERS 1
 #define DEFAULT_MAX_POOL_SIZE 1024
@@ -175,6 +177,10 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
 
   server_comm = intracomm;
 
+#ifdef _BENCHMARKING
+    init_benchmarking(rank, ncons, nprod, nserv);
+#endif
+
   char *nl = getenv("BUFFERING_NR_SERVER_LISTENERS");
   if (nl) {
     sscanf(nl, "%d", &nr_listeners);
@@ -192,8 +198,6 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
   cls_init_buffering(&bufservice, MAX_DATA, max_pool_size);
 
   cls_init_buffering(&work_queue, sizeof(cls_task_t), max_pool_size);
-
-  /*init_benchmarking(rank, ncons, nprod, nserv);*/
 
   listener_t *listeners = calloc(2 * nr_listeners + 1, sizeof(listener_t));
   for (i = 0; i < nr_listeners; ++i) {
@@ -213,11 +217,16 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
 
   free(listeners);
 
+#ifdef _BENCHMARKING
+    destroy_benchmarking();
+#endif
+
   cls_destroy_buffering(&bufservice);
   cls_destroy_buffering(&work_queue);
-
-  /*destroy_benchmarking();*/
 }
+
+uint64_t nr_producers_sending;
+uint64_t nr_consumers_sending;
 
 void *producer_handler(void *arg)
 {
@@ -234,6 +243,8 @@ void *producer_handler(void *arg)
   // The producers are uniformly distributed over the servers, i.e. some of the last
   // servers(bigger rank) will have to wait for less producers.
   uint32_t nprod_sending = nprod / nserv + (nprod % nserv != 0);
+  nr_producers_sending = nprod_sending;
+
   uint32_t nlast = nserv - nprod % nserv;
   if (nprod % nserv && rank + nlast >= nserv) {
     nprod_sending = nprod / nserv;
@@ -254,6 +265,7 @@ void *producer_handler(void *arg)
       t.offset = op_put.handle.offset;
       t.count = op_put.count;
       t.quit = 0;
+      t.source_rank = status.MPI_SOURCE;
 
       cls_buf_handle_t task_handle;
       task_handle.global_descr = task_count;
@@ -279,12 +291,13 @@ void *producer_handler(void *arg)
 void *consumer_handler(void *arg)
 {
   MPI_Status status;
-  int32_t ncons, nserv, rank;
+  int32_t ncons, nserv, rank, total_procs;
 
   listener_t *lst = (listener_t*) arg;
 
   MPI_Comm_rank(lst->communicator, &rank);
   MPI_Comm_size(lst->communicator, &nserv);
+  MPI_Comm_size(MPI_COMM_WORLD, &total_procs);
   MPI_Comm_remote_size(lst->communicator, &ncons);
 
   // ncons_sending is the number of consumers that will send tasks to this server.
@@ -299,6 +312,13 @@ void *consumer_handler(void *arg)
   uint32_t quit = 0;
   cls_op_get_t op_get;
 
+  double consumers_time = 0;
+  uint64_t nr_requests = 0;
+
+  double *consumers_times = calloc(total_procs, sizeof(double));
+  int *consumers_requests = calloc(total_procs, sizeof(int));
+
+  uint64_t burst_count = 0;
   char data[MAX_DATA];
   while (quit != ncons_sending) {
     MPI_Recv(&op_get, sizeof(cls_op_get_t), MPI_CHAR, MPI_ANY_SOURCE, 5, lst->communicator,
@@ -307,11 +327,35 @@ void *consumer_handler(void *arg)
     if (op_get.quit) {
       ++quit;
     } else {
+      if (burst_count == BURST_COUNT) {
+        burst_count = 0;
+        usleep(BURST_WAIT);
+      }
+
+      double start_time = MPI_Wtime();
       cls_get(&bufservice, op_get.handle, 0, data, op_get.count);
+      double end_time = MPI_Wtime();
+
+#ifdef _BENCHMARKING
+      print_counters(&bufservice);
+#endif
+      consumers_requests[status.MPI_SOURCE]++;
+      consumers_times[status.MPI_SOURCE] += (end_time - start_time);
 
       MPI_Send(data, op_get.count, MPI_CHAR, status.MPI_SOURCE, 5,
                lst->communicator);
     }
+
+    ++burst_count;
+  }
+
+  int i;
+  for (i = 0; i < total_procs; ++i) {
+    if (!consumers_requests[i]) {
+      continue;
+    }
+    fprintf(stderr, "Consumer rank %d on server rank %d, time avg: %lf\n",
+            i, rank, consumers_times[i] / consumers_requests[i]);
   }
 
   pthread_exit(NULL);
@@ -319,6 +363,12 @@ void *consumer_handler(void *arg)
 
 void *disk_handler(void *arg)
 {
+  listener_t *lst = (listener_t*) arg;
+
+  int rank, total_procs;
+  MPI_Comm_rank(lst->communicator, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &total_procs);
+
   cls_buf_handle_t task_handle;
   task_handle.offset = 0;
   task_handle.global_descr = 0;
@@ -331,24 +381,53 @@ void *disk_handler(void *arg)
 
   char data[MAX_DATA];
 
+  uint64_t burst_count = 0;
+  double producers_time = 0;
+  uint64_t nr_requests = 0;
+
+  double *producers_times = calloc(total_procs, sizeof(double));
+  int *producers_requests = calloc(total_procs, sizeof(int));
   while (1) {
     cls_get(&work_queue, task_handle, 0, (void*)&task, sizeof(cls_task_t));
     if (task.quit) {
       break;
     }
 
-
     lseek(fd, task.offset, SEEK_SET);
     read(fd, data, task.count);
 
-
     buf_handle.offset = task.offset;
+
+    if (burst_count == BURST_COUNT) {
+      burst_count = 0;
+      usleep(BURST_WAIT);
+    }
+    double start_time = MPI_Wtime();
     cls_put(&bufservice, buf_handle, 0, data, task.count);
+    double end_time = MPI_Wtime();
+
+#ifdef _BENCHMARKING
+      print_counters(&bufservice);
+#endif
+
+    producers_requests[task.source_rank]++;
+    producers_times[task.source_rank] += (end_time - start_time);
 
     task_handle.global_descr++;
+    ++burst_count;
+    ++nr_requests;
   }
 
   close(fd);
+
+  int i;
+  for (i = 0; i < total_procs; ++i) {
+    if (!producers_requests[i]) {
+      continue;
+    }
+    fprintf(stderr, "Producer rank: %d on server rank %d, time avg: %lf\n",
+            i, rank, producers_times[i] / producers_requests[i]);
+  }
 
   return NULL;
 }

@@ -25,5 +25,6 @@ typedef struct
   uint64_t offset;
   uint64_t count;
   uint8_t quit;
+  int16_t source_rank;
 } cls_task_t;
 

@@ -11,7 +11,7 @@ error_code sched_init(buffer_scheduler_t *bufsched, uint64_t buffer_size,
   bufsched->max_pool_size = max_pool_size;
 
   allocator_init(&bufsched->allocator_md, sizeof(cls_buf_t), bufsched->max_pool_size);
-  allocator_init(&bufsched->allocator_data, buffer_size, bufsched->nr_free_buffers);
+  allocator_init(&bufsched->allocator_data, buffer_size, bufsched->max_pool_size);
 
   allocator_expand(&bufsched->allocator_md, bufsched->max_pool_size);
   allocator_expand(&bufsched->allocator_data, bufsched->max_pool_size);

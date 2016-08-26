@@ -12,7 +12,7 @@
 #include "listener.h"
 #include "cls_buffering.h"
 
-#define MAX_DATA 1048576
+uint64_t MAX_DATA = 1048576;
 
 double prod_time = 0;
 double cons_time = 0;
@@ -26,6 +26,11 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Comm_rank(intracomm, &rank);
   MPI_Comm_size(intracomm, &nprod);
   MPI_Comm_remote_size(intercomm_server, &nserv);
+
+  char *bs = getenv("BUFFERING_BUFFER_SIZE");
+  if (bs) {
+    sscanf(bs, "%ld", &MAX_DATA);
+  }
 
   struct stat finfo;
   uint64_t bufsize = MAX_DATA;
@@ -85,6 +90,11 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Comm_size(intracomm, &ncons);
   MPI_Comm_remote_size(intercomm_server, &nserv);
 
+  char *bs = getenv("BUFFERING_BUFFER_SIZE");
+  if (bs) {
+    sscanf(bs, "%ld", &MAX_DATA);
+  }
+
   // Distribute the consumers evenly between servers
   int32_t dest_server = rank % nserv;
 
@@ -111,7 +121,7 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   }
 
   uint32_t i = 0;
-  char data[MAX_DATA];
+  char *data = malloc(MAX_DATA);
 
   cls_op_get_t op_get;
   op_get.handle.global_descr = 0;
@@ -146,6 +156,7 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);
 
   close(fd);
+  free(data);
 
   fprintf(stderr, "Consumer rank %d time: %lf\n", rank, cons_time);
 }
@@ -187,6 +198,11 @@ void server(MPI_Comm intercomm_producer, MPI_Comm intercomm_consumer, MPI_Comm i
     sscanf(max_pool, "%d", &max_pool_size);
   } else {
     printf("Warning: Default max pool size will be used\n");
+  }
+
+  char *bs = getenv("BUFFERING_BUFFER_SIZE");
+  if (bs) {
+    sscanf(bs, "%ld", &MAX_DATA);
   }
 
   cls_init_buffering(&bufservice, MAX_DATA, max_pool_size);
@@ -299,7 +315,7 @@ void *consumer_handler(void *arg)
   uint32_t quit = 0;
   cls_op_get_t op_get;
 
-  char data[MAX_DATA];
+  char *data = malloc(MAX_DATA);
   while (quit != ncons_sending) {
     MPI_Recv(&op_get, sizeof(cls_op_get_t), MPI_CHAR, MPI_ANY_SOURCE, 5, lst->communicator,
              &status);
@@ -314,6 +330,7 @@ void *consumer_handler(void *arg)
     }
   }
 
+  free(data);
   pthread_exit(NULL);
 }
 
@@ -329,7 +346,7 @@ void *disk_handler(void *arg)
   cls_buf_handle_t buf_handle;
   buf_handle.global_descr = 0;
 
-  char data[MAX_DATA];
+  char *data = malloc(MAX_DATA);
 
   while (1) {
     cls_get(&work_queue, task_handle, 0, (void*)&task, sizeof(cls_task_t));
@@ -349,6 +366,7 @@ void *disk_handler(void *arg)
   }
 
   close(fd);
+  free(data);
 
   return NULL;
 }

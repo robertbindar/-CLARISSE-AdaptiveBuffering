@@ -14,7 +14,7 @@
 double prod_time = 0;
 double cons_time = 0;
 
-#define MAX_DATA 1048576
+uint64_t MAX_DATA = 1048576;
 
 void producer()
 {
@@ -22,6 +22,11 @@ void producer()
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &nprod);
+
+  char *bs = getenv("BUFFERING_BUFFER_SIZE");
+  if (bs) {
+    sscanf(bs, "%ld", &MAX_DATA);
+  }
 
   nprod = nprod / 2;
 
@@ -48,7 +53,7 @@ void producer()
 
   double prod_time = 0;
 
-  char data[MAX_DATA];
+  char *data = malloc(MAX_DATA);
   while (i < chunk) {
     uint32_t count;
     if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
@@ -68,6 +73,7 @@ void producer()
 
   munmap(file_addr, file_size);
   close(fd);
+  free(data);
 
   fprintf(stderr, "Producer rank %d, time: %lf\n", rank + nprod, prod_time);
 }
@@ -78,6 +84,11 @@ void consumer()
 
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
   MPI_Comm_size(MPI_COMM_WORLD, &ncons);
+
+  char *bs = getenv("BUFFERING_BUFFER_SIZE");
+  if (bs) {
+    sscanf(bs, "%ld", &MAX_DATA);
+  }
 
   ncons = ncons / 2;
   rank = rank - ncons;
@@ -107,7 +118,7 @@ void consumer()
   }
 
   uint32_t i = 0;
-  char data[MAX_DATA];
+  char *data = malloc(MAX_DATA);
   double cons_time = 0;
   while (i < chunk) {
     uint32_t count;
@@ -129,6 +140,7 @@ void consumer()
   }
 
   close(fd);
+  free(data);
   fprintf(stderr, "Consumer rank %d, time: %lf\n", rank + ncons, cons_time);
 }
 

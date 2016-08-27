@@ -72,7 +72,7 @@ void producer(cls_buffering_t *bufservice, uint32_t rank, uint32_t bufsize,
 
         uint32_t offset = rank * (size / nprod);
 
-        std::copy(file_addr + i * bufsize + offset, file_addr + i * bufsize + offset + count, buf);
+        std::copy(file_addr + i * bufsize, file_addr + i * bufsize + bufsize, buf);
 
         uint32_t s = offset;
         uint32_t c = count / VEC_SIZE;

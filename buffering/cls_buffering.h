@@ -67,7 +67,7 @@ error_code cls_put_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_
                                      const cls_size_t *countv, const cls_size_t vector_size, const cls_byte_t *data,
                                      const uint32_t nr_participants);
 
-error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle);
+error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, uint32_t nr_participants);
 
 error_code cls_destroy_buffering(cls_buffering_t *bufservice);
 

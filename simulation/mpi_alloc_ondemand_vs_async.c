@@ -13,8 +13,8 @@
 #include "cls_buffering.h"
 
 uint64_t MAX_DATA = 1048576;
-#define BURST_WAIT 200000
-#define BURST_COUNT 30
+#define BURST_WAIT 50000
+#define BURST_COUNT 100
 
 double prod_time = 0;
 double cons_time = 0;
@@ -140,7 +140,6 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     op_get.quit = 0;
     MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);
 
-    usleep(300000);
     double start_time = MPI_Wtime();
     MPI_Recv(data, count, MPI_CHAR, dest_server, 5, intercomm_server,
              MPI_STATUS_IGNORE);
@@ -346,7 +345,7 @@ void *consumer_handler(void *arg)
   }
 
   fprintf(stderr, "Consumers on server rank %d, time avg: %lf\n",
-          rank, consumers_time / nr_requests);
+          rank, consumers_time);
 
   free(data);
   pthread_exit(NULL);
@@ -404,7 +403,7 @@ void *disk_handler(void *arg)
   free(data);
 
   fprintf(stderr, "Producers on server rank %d, time avg: %lf\n",
-          rank, producers_time / nr_requests);
+          rank, producers_time);
 
   return NULL;
 }

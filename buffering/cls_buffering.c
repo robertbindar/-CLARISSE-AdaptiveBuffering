@@ -387,7 +387,6 @@ error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
     HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
     pthread_mutex_unlock(&found->lock);
-    pthread_rwlock_unlock(&found->rwlock_swap);
 
     sched_free(&bufservice->buf_sched, found);
 
@@ -502,7 +501,7 @@ error_code cls_get_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_
   return BUFFERING_SUCCESS;
 }
 
-error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle)
+error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_handle, uint32_t nr_participants)
 {
   cls_buf_t *found = NULL;
 
@@ -518,10 +517,26 @@ error_code cls_release_buf(cls_buffering_t *bufservice, cls_buf_handle_t buf_han
     return BUFFERING_INVALIDARGS;
   }
 
-  HASH_DEL(bufservice->buffers, found);
   HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
 
-  return sched_free_unsafe(&bufservice->buf_sched, found);
+  pthread_mutex_lock(&found->lock);
+  found->nr_consumers_finished++;
+
+  // The last consumer that finished will release the buffer
+  if (found->nr_consumers_finished == nr_participants) {
+    HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+    HASH_DEL(bufservice->buffers, found);
+    HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+    pthread_mutex_unlock(&found->lock);
+    sched_free_unsafe(&bufservice->buf_sched, found);
+
+    return BUFFERING_SUCCESS;
+  }
+
+  pthread_mutex_unlock(&found->lock);
+
+  return BUFFERING_SUCCESS;
 }
 
 void print_buffers(cls_buffering_t *bufservice)

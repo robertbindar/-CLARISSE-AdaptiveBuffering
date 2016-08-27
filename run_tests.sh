@@ -30,18 +30,18 @@ for file in bin/cpp_test*; do
 done
 
 for file in bin/mpi_*; do
+  echo ">>>> Test $file started"
+  ulimit -s unlimited
   if [ "$file" == "bin/mpi_p2p_filetransfer.bin" ]; then
     export BUFFERING_NUMBER_OF_SERVERS=0
     mpiexec -n $(($nprod + $ncons)) ./$file $input
-    continue
+    export BUFFERING_NUMBER_OF_SERVERS=$nserv
+  else
+    mpiexec -n $(($nprod + $ncons + $nserv)) ./$file $input
   fi
-  echo ">>>> Test $file started"
-  ulimit -s unlimited
-  mpiexec -n $(($nprod + $ncons + $nserv)) ./$file $input
+  diff $input output
   echo ">>>> Test $file finished"
 done
-
-diff input output
 
 rm $input
 

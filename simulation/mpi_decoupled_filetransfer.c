@@ -140,7 +140,6 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     op_get.quit = 0;
     MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);
 
-    usleep(300000);
     double start_time = MPI_Wtime();
     MPI_Recv(data, count, MPI_CHAR, dest_server, 5, intercomm_server,
              MPI_STATUS_IGNORE);

@@ -132,7 +132,6 @@ void consumer()
     MPI_Recv(data, count, MPI_CHAR, source_prod, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     double end_time = MPI_Wtime();
 
-    usleep(300000);
     cons_time += (end_time - start_time);
     lseek(fd, (begin + i) * bufsize, SEEK_SET);
     write(fd, data, count);

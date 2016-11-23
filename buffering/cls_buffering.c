@@ -248,8 +248,10 @@ error_code cls_put_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bu
 
   // Write the data to buffer
   cls_size_t i = 0;
+  int cnt = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
+    memcpy(found->data + offsetv[i], data + cnt /*offsetv[i]*/, countv[i]);
+    cnt += countv[i];
   }
 
   // Mark the buffer as being ready to be read
@@ -302,8 +304,10 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
 
   // Write the data to buffer
   cls_size_t i = 0;
+  int cnt = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
+    memcpy(found->data + offsetv[i], data + cnt/*offsetv[i]*/, countv[i]);
+    cnt += countv[i];
   }
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
@@ -373,8 +377,10 @@ error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
 
   // Read data from buffer
   cls_size_t i = 0;
+  int cnt = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(data + offsetv[i], found->data + offsetv[i], countv[i]);
+    memcpy(data + cnt /*offsetv[i]*/, found->data + offsetv[i], countv[i]);
+    cnt += countv[i];
   }
 
   pthread_mutex_lock(&found->lock);
@@ -442,8 +448,10 @@ error_code cls_put_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_
 
   // Write the data to buffer
   cls_size_t i = 0;
+  int cnt = 0;
   for (i = 0; i < vector_size; ++i) {
-    memcpy(found->data + offsetv[i], data + offsetv[i], countv[i]);
+    memcpy(found->data + offsetv[i], data + cnt /*offsetv[i]*/, countv[i]);
+    cnt += countv[i];
   }
 
   HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);

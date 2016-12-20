@@ -406,11 +406,97 @@ error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
   return BUFFERING_SUCCESS;
 }
 
+//Same as cls_get_vector_all expect the result is returned as pointers 
+error_code cls_get_vector_all2(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t **result,
+                              const uint32_t nr_consumers)
+{
+  HANDLE_ERR(!offsetv || !countv || vector_size <= 0 || nr_consumers <= 0,
+             BUFFERING_INVALIDARGS);
+
+  cls_buf_t *found = NULL;
+
+  cls_buf_handle_t bh;
+  copy_buf_handle(&bh, &buf_handle);
+
+  HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // Check whether the requested buffer is allocated or not.
+  HASH_FIND(hh, bufservice->buffers, &bh, sizeof(cls_buf_handle_t), found);
+  if (!found) {
+    // Request a buffer from the scheduler
+    sched_alloc_md(&bufservice->buf_sched, &found, bh);
+
+    // Add newly allocated buffer to hash
+    HASH_ADD(hh, bufservice->buffers, handle, sizeof(cls_buf_handle_t), found);
+  }
+
+  HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+  // We want the memcpy line to be fully parallel, but if the swapper is on,
+  // it might try to swap out the buffer. This won't block the swapper too much
+  // because consumers will be firstly notified when the buffer is transitioned
+  // from BUF_ALLOCATED to BUF_UPDATED.
+  // FIXME: implement rwlock, with high priority for readers
+  pthread_rwlock_rdlock(&found->rwlock_swap);
+
+  // Wait until the buffer is written by producers
+  HANDLE_ERR(pthread_mutex_lock(&found->lock), BUFSERVICE_LOCK_ERR);
+  while (found->state == BUF_ALLOCATED) {
+    pthread_cond_wait(&found->cond_state, &found->lock);
+  }
+
+  // If the buffer is swapped, the first consumer that arrives will schedule a
+  // task to swap in the buffer. It will be either swapped in by this dispatched task
+  // or by a voluntary task dispatched by the async allocator itself.
+  while (found->state == BUF_SWAPPED_OUT || found->state == BUF_QUEUED_SWAPIN) {
+    if (found->state == BUF_SWAPPED_OUT) {
+      sched_swapin(&bufservice->buf_sched, found);
+    }
+    pthread_cond_wait(&found->cond_state, &found->lock);
+  }
+  pthread_mutex_unlock(&found->lock);
+
+  cls_size_t i = 0;
+  for (i = 0; i < vector_size; ++i) {
+    result[i] = found->data + offsetv[i];
+  }
+
+
+  pthread_mutex_lock(&found->lock);
+  found->nr_consumers_finished++;
+
+  // The last consumer that finished reading will release the buffer
+  if (found->nr_consumers_finished == nr_consumers) {
+    HANDLE_ERR(pthread_mutex_lock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+    HASH_DEL(bufservice->buffers, found);
+    HANDLE_ERR(pthread_mutex_unlock(&bufservice->lock), BUFSERVICE_LOCK_ERR);
+
+    pthread_mutex_unlock(&found->lock);
+
+    sched_free(&bufservice->buf_sched, found);
+
+    return BUFFERING_SUCCESS;
+  }
+
+  // Unlock rwlock first, avoid race
+  pthread_rwlock_unlock(&found->rwlock_swap);
+  pthread_mutex_unlock(&found->lock);
+
+  return BUFFERING_SUCCESS;
+}
+
 
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
                           const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data)
 {
   return cls_get_vector_all(bufservice, bh, offsetv, countv, vector_size, data, 1);
+}
+
+error_code cls_get_vector2(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t **result)
+{
+  return cls_get_vector_all2(bufservice, bh, offsetv, countv, vector_size, result, 1);
 }
 
 error_code cls_put_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle,

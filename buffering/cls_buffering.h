@@ -55,8 +55,17 @@ error_code cls_put_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_
 error_code cls_get_vector(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
                           const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data);
 
+error_code cls_get_vector2(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                          const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t **result);
+
+
+
 error_code cls_get_vector_all(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
                               const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t *data,
+                              const uint32_t nr_participants);
+
+error_code cls_get_vector_all2(cls_buffering_t *bufservice, const cls_buf_handle_t bh, const cls_size_t *offsetv,
+                              const cls_size_t *countv, const cls_size_t vector_size, cls_byte_t **result,
                               const uint32_t nr_participants);
 
 error_code cls_get_vector_noswap_all(cls_buffering_t *bufservice, const cls_buf_handle_t buf_handle, const cls_size_t *offsetv,

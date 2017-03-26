@@ -28,7 +28,7 @@ for i in $(seq 1 $maxbuf); do
   echo "export BUFFERING_BUFFER_SIZE=$dir" >> test/dir-$dir/script_p2p.pbs
   echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> test/dir-$dir/script_p2p.pbs
   echo "name=decoupled" >> test/dir-$dir/script_p2p.pbs
-  echo 'aprun -j 2 -n $(($nprod + $ncons + $nserv)) /work/pr1u1352/pr1u1352/pr1e1903/CLARISSE-AdaptiveBuffering/bin/mpi_p2p_filetransfer.bin &> ""$name"_"$nprod"_"$ncons"_"$nserv"' >> test/dir-$dir/script_p2p.pbs
+  echo 'aprun -j 2 -n $(($nprod + $ncons)) /work/pr1u1352/pr1u1352/pr1e1903/CLARISSE-AdaptiveBuffering/bin/mpi_p2p_filetransfer.bin &> ""$name"_"$nprod"_"$ncons"_"$nserv"' >> test/dir-$dir/script_p2p.pbs
 
   cd test/dir-$dir
   # block=true is supposed to block qsub until the job is done.

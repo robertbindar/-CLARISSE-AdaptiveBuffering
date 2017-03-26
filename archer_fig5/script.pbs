@@ -1,0 +1,23 @@
+#!/bin/bash --login
+
+#PBS -N hello
+#PBS -l select=6
+#PBS -l walltime=0:10:0
+#PBS -A pr1u1352
+
+# This shifts to the directory that you submitted the job from
+cd $PBS_O_WORKDIR
+
+nprod=64
+ncons=64
+nserv=4
+nlist=1
+
+export BUFFERING_NUMBER_OF_PRODUCERS=$nprod
+export BUFFERING_NUMBER_OF_CONSUMERS=$ncons
+export BUFFERING_NUMBER_OF_SERVERS=$nserv
+export BUFFERING_NR_SERVER_LISTENERS=$nlist
+
+export MPICH_MAX_THREAD_SAFETY=multiple
+
+

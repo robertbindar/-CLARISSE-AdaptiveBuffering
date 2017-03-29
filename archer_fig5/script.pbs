@@ -20,4 +20,5 @@ export BUFFERING_NR_SERVER_LISTENERS=$nlist
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 
+export LD_LIBRARY_PATH=/work/pr1u1352/pr1u1352/pr1e1901/software/CLARISSE-AdaptiveBuffering/bin:$LD_LIBRARY_PATH
 

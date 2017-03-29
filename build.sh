@@ -11,8 +11,8 @@ if [ $# -ge 2 ]; then
 else
   if [[ $1 = "clean" ]]; then
     make clean -C $BUFFERING
-    make clean -C $BUFFERING/tests
-    make clean -C $SIMULATION
+#    make clean -C $BUFFERING/tests
+#    make clean -C $SIMULATION
     rm -rf $BINARIES
     exit 0
   elif [ $# -eq 1 ]
@@ -26,14 +26,14 @@ mkdir -p $BINARIES
 mkdir -p $INCLUDE
 
 cp $BUFFERING/*.h $INCLUDE
-cp $SIMULATION/*.h $INCLUDE
+#cp $SIMULATION/*.h $INCLUDE
 
 make -C $BUFFERING
-mv $BUFFERING/libbuffering.so $BINARIES/
+#mv $BUFFERING/libbuffering.so $BINARIES/
 
 make -C $SIMULATION
 mv $SIMULATION/*.bin $BINARIES/
 
-make -C $BUFFERING/tests/
-mv $BUFFERING/tests/*.bin $BINARIES/
+#make -C $BUFFERING/tests/
+#mv $BUFFERING/tests/*.bin $BINARIES/
 

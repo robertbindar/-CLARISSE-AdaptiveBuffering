@@ -1,6 +1,6 @@
-CC = mpicc
+CC = cc
 CFLAGS = -g -I ../include -O3 -Wno-unused-result
-LDFLAGS = -L../bin/ -lpthread -lbuffering
+LDFLAGS = -dynamic -L../bin/ -lbuffering -Wl,-rpath,../bin -lpthread -lbuffering
 SIMULATION = producer_consumer_decoupling.c listener.c
 EXEC = mpi_decoupled_filetransfer.bin mpi_p2p_filetransfer.bin mpi_alloc_ondemand_vs_async.bin mpi_ondemand_ideal_adaptive.bin
 

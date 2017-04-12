@@ -54,6 +54,8 @@ void producer()
   double prod_time = 0;
 
   char *data = malloc(MAX_DATA);
+ 
+  double start_time = MPI_Wtime();
   while (i < chunk) {
     uint32_t count;
     if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
@@ -63,13 +65,15 @@ void producer()
     }
 
     memcpy(data, file_addr + (begin + i) * bufsize, count);
-    double start_time = MPI_Wtime();
+    //double start_time = MPI_Wtime();
     MPI_Send(data, count, MPI_CHAR, dest_cons, 0, MPI_COMM_WORLD);
-    double end_time = MPI_Wtime();
+    //double end_time = MPI_Wtime();
 
-    prod_time += (end_time - start_time);
+    //prod_time += (end_time - start_time);
     ++i;
   }
+  double end_time = MPI_Wtime();
+  prod_time = (end_time - start_time);
 
   munmap(file_addr, file_size);
   close(fd);
@@ -120,6 +124,8 @@ void consumer()
   uint32_t i = 0;
   char *data = malloc(MAX_DATA);
   double cons_time = 0;
+
+  double start_time = MPI_Wtime();
   while (i < chunk) {
     uint32_t count;
     if (rank == ncons - 1 && file_size % bufsize && i == chunk - 1) {
@@ -128,15 +134,18 @@ void consumer()
       count = bufsize;
     }
 
-    double start_time = MPI_Wtime();
+    //double start_time = MPI_Wtime();
     MPI_Recv(data, count, MPI_CHAR, source_prod, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    double end_time = MPI_Wtime();
+    //    double end_time = MPI_Wtime();
 
-    cons_time += (end_time - start_time);
+    //cons_time += (end_time - start_time);
     lseek(fd, (begin + i) * bufsize, SEEK_SET);
     write(fd, data, count);
     ++i;
   }
+  double end_time = MPI_Wtime();
+
+  cons_time = (end_time - start_time);
 
   close(fd);
   free(data);

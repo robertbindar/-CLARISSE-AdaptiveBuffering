@@ -55,6 +55,7 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   cls_buf_handle_t handle;
   handle.global_descr = 0;
 
+  double start_time = MPI_Wtime();
   while (i < chunk) {
     handle.offset = (begin + i) * bufsize;
 
@@ -67,13 +68,16 @@ void producer(MPI_Comm intercomm_server, MPI_Comm intracomm)
       put.count = bufsize;
     }
 
-    double start_time = MPI_Wtime();
+    //double start_time = MPI_Wtime();
     MPI_Send(&put, sizeof(cls_op_put_t), MPI_CHAR, dest_server, 4, intercomm_server);
-    double end_time = MPI_Wtime();
+    //double end_time = MPI_Wtime();
 
-    prod_time += (end_time - start_time);
+    //prod_time += (end_time - start_time);
     ++i;
   }
+   double end_time = MPI_Wtime();
+
+   prod_time += (end_time - start_time);
 
   cls_op_put_t quit;
   quit.quit = 1;
@@ -126,6 +130,8 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
   cls_op_get_t op_get;
   op_get.handle.global_descr = 0;
 
+  double start_time = MPI_Wtime();
+
   while (i < chunk) {
     uint64_t count;
 
@@ -140,16 +146,19 @@ void consumer(MPI_Comm intercomm_server, MPI_Comm intracomm)
     op_get.quit = 0;
     MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);
 
-    double start_time = MPI_Wtime();
+    //double start_time = MPI_Wtime();
     MPI_Recv(data, count, MPI_CHAR, dest_server, 5, intercomm_server,
              MPI_STATUS_IGNORE);
-    double end_time = MPI_Wtime();
+    //double end_time = MPI_Wtime();
 
-    cons_time += (end_time - start_time);
+    //cons_time += (end_time - start_time);
     lseek(fd, (begin + i) * bufsize, SEEK_SET);
     write(fd, data, count);
     ++i;
   }
+  double end_time = MPI_Wtime();
+
+  cons_time = (end_time - start_time);
 
   op_get.quit = 1;
   MPI_Send(&op_get, sizeof(cls_op_get_t), MPI_CHAR, dest_server, 5, intercomm_server);

@@ -1,8 +1,8 @@
 #!/bin/bash --login
 
 #PBS -N hello
-#PBS -l select=6
-#PBS -l walltime=0:10:0
+#PBS -l select=8
+#PBS -l walltime=0:10:00
 #PBS -A pr1u1352
 
 # This shifts to the directory that you submitted the job from
@@ -10,7 +10,7 @@ cd $PBS_O_WORKDIR
 
 nprod=64
 ncons=64
-nserv=4
+nserv=64
 nlist=1
 
 export BUFFERING_NUMBER_OF_PRODUCERS=$nprod

@@ -1,25 +1,28 @@
-#!/bin/bash
+#!/bin/bash 
 
-maxbuf=1 # 20
-inputsize=$((1024 * 1024 * 1024))
+minbuf=10 #initially was 1
+maxbuf=18 # 
+inputsize=$((1024 * 1024 * 1024)) #1024
 nrserv=4
 binpath=/work/pr1u1352/pr1u1352/pr1e1901/software/CLARISSE-AdaptiveBuffering/bin
 
 mkdir -p test;
 
-
-dir=1
 # Create directories name 2 4 8 16..2^20
 # The name of the subdirectory specifies the size of the buffer used for simulation
 # insert a script.pbs file personalized for each buffer size in each subdirectory
 # submit the bufferflow and the tightly coupled mpi simulation
-for i in $(seq 1 $maxbuf); do
-  dir=$(($dir * 2))
 
+dir=1
+for i in $(seq 1 $minbuf); do
+	dir=$(($dir * 2))
+done
+for i in $(seq $minbuf 2 $maxbuf); do
   mkdir -p test/dir-$dir
 
   #cp ./input test/dir-$dir/
   ln -s $PWD/input test/dir-$dir/input
+  #rm $PWD/output
   cp ./script.pbs test/dir-$dir/script_decoupled.pbs
   echo "export BUFFERING_BUFFER_SIZE=$dir" >> test/dir-$dir/script_decoupled.pbs
   echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> test/dir-$dir/script_decoupled.pbs
@@ -51,6 +54,8 @@ for i in $(seq 1 $maxbuf); do
   cat p2p_64_64_4 | grep Producer | cut -d' ' -f5 | tr '\n' ' ' | awk '{s+=$1}END{print NR,s," ",s/NR}' RS=" " >> p2p_results
 
   cd ../../
+
+  dir=$(($dir * 4))
 done
 
 #gather all the results together
@@ -65,11 +70,14 @@ rez=final_results
 touch $rez
 
 dir=1
-for i in $(seq 1 $maxbuf); do
-  dir=$(($dir * 2))
+for i in $(seq 1 $minbuf); do
+        dir=$(($dir * 2))
+done
+for i in $(seq $minbuf 2 $maxbuf); do
   cons1=$(cat test/dir-$dir/decoupled_results | cut -d' ' -f1)
   prod1=$(cat test/dir-$dir/decoupled_results | cut -d' ' -f2)
   cons2=$(cat test/dir-$dir/p2p_results | cut -d' ' -f1)
   prod2=$(cat test/dir-$dir/p2p_results | cut -d' ' -f2)
   echo "$dir $con1 $prod1 $cons2 $prod2" >> $rez
+  dir=$(($dir * 4))
 done

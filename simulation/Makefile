@@ -3,7 +3,7 @@ CFLAGS = -g -I ../include -O3 -Wno-unused-result
 LDFLAGS =  -L../bin/ -lbuffering -Wl,-rpath,../bin -lpthread -lbuffering
 LDFLAGS += -dynamic  
 SIMULATION = producer_consumer_decoupling.c listener.c
-EXEC = mpi_decoupled_filetransfer.bin mpi_p2p_filetransfer.bin mpi_alloc_ondemand_vs_async.bin mpi_ondemand_ideal_adaptive.bin
+EXEC = mpi_decoupled_filetransfer.bin mpi_p2p_filetransfer.bin mpi_alloc_ondemand_vs_async.bin mpi_ondemand_ideal_adaptive.bin mpi_decoupled_filetransfer_no_io.bin mpi_p2p_filetransfer_no_io.bin
 
 all: $(EXEC)
 
@@ -11,6 +11,12 @@ mpi_decoupled_filetransfer.bin: mpi_decoupled_filetransfer.c $(SIMULATION)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 mpi_p2p_filetransfer.bin: mpi_p2p_filetransfer.c
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+mpi_decoupled_filetransfer_no_io.bin: mpi_decoupled_filetransfer_no_io.c $(SIMULATION)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+mpi_p2p_filetransfer_no_io.bin: mpi_p2p_filetransfer_no_io.c
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 mpi_alloc_ondemand_vs_async.bin: mpi_alloc_ondemand_vs_async.c $(SIMULATION)

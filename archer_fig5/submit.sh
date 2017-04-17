@@ -1,12 +1,17 @@
 #!/bin/bash 
 
-minbuf=10 #initially was 1
-maxbuf=18 # 
+testdir="test_no_io" #"test" 
+binext="_no_io.bin" # ".bin"
+
+minbuf=12 #initially was 1
+maxbuf=20 # 
 inputsize=$((1024 * 1024 * 1024)) #1024
 nrserv=4
 binpath=/work/pr1u1352/pr1u1352/pr1e1901/software/CLARISSE-AdaptiveBuffering/bin
 
-mkdir -p test;
+
+
+mkdir -p $testdir;
 
 # Create directories name 2 4 8 16..2^20
 # The name of the subdirectory specifies the size of the buffer used for simulation
@@ -18,24 +23,24 @@ for i in $(seq 1 $minbuf); do
 	dir=$(($dir * 2))
 done
 for i in $(seq $minbuf 2 $maxbuf); do
-  mkdir -p test/dir-$dir
+  mkdir -p $testdir/dir-$dir
 
-  #cp ./input test/dir-$dir/
-  ln -s $PWD/input test/dir-$dir/input
+  #cp ./input $testdir/dir-$dir/
+  ln -s $PWD/input $testdir/dir-$dir/input
   #rm $PWD/output
-  cp ./script.pbs test/dir-$dir/script_decoupled.pbs
-  echo "export BUFFERING_BUFFER_SIZE=$dir" >> test/dir-$dir/script_decoupled.pbs
-  echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> test/dir-$dir/script_decoupled.pbs
-  echo "name=decoupled" >> test/dir-$dir/script_decoupled.pbs
-  echo 'aprun -j 2 -n $(($nprod + $ncons + $nserv)) '$binpath'/mpi_decoupled_filetransfer.bin &> ""$name"_"$nprod"_"$ncons"_"$nserv""' >> test/dir-$dir/script_decoupled.pbs
+  cp ./script.pbs $testdir/dir-$dir/script_decoupled.pbs
+  echo "export BUFFERING_BUFFER_SIZE=$dir" >> $testdir/dir-$dir/script_decoupled.pbs
+  echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> $testdir/dir-$dir/script_decoupled.pbs
+  echo "name=decoupled" >> $testdir/dir-$dir/script_decoupled.pbs
+  echo 'aprun -j 2 -n $(($nprod + $ncons + $nserv)) '$binpath'/mpi_decoupled_filetransfer'$binext' &> ""$name"_"$nprod"_"$ncons"_"$nserv""' >> $testdir/dir-$dir/script_decoupled.pbs
 
-  cp ./script.pbs test/dir-$dir/script_p2p.pbs
-  echo "export BUFFERING_BUFFER_SIZE=$dir" >> test/dir-$dir/script_p2p.pbs
-  echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> test/dir-$dir/script_p2p.pbs
-  echo "name=p2p" >> test/dir-$dir/script_p2p.pbs
-  echo 'aprun -j 2 -n $(($nprod + $ncons)) '$binpath'/mpi_p2p_filetransfer.bin &> ""$name"_"$nprod"_"$ncons"_"$nserv""' >> test/dir-$dir/script_p2p.pbs
+  cp ./script.pbs $testdir/dir-$dir/script_p2p.pbs
+  echo "export BUFFERING_BUFFER_SIZE=$dir" >> $testdir/dir-$dir/script_p2p.pbs
+  echo "export BUFFERING_MAX_POOL_SIZE=$(($inputsize / $nrserv / $dir))" >> $testdir/dir-$dir/script_p2p.pbs
+  echo "name=p2p" >> $testdir/dir-$dir/script_p2p.pbs
+  echo 'aprun -j 2 -n $(($nprod + $ncons)) '$binpath'/mpi_p2p_filetransfer'$binext' &> ""$name"_"$nprod"_"$ncons"_"$nserv""' >> $testdir/dir-$dir/script_p2p.pbs
 
-  cd test/dir-$dir
+  cd $testdir/dir-$dir
   # block=true is supposed to block qsub until the job is done.
   # The queues have limits for the number of jobs you can submit, it's less efficient to block but this way you won't have to
   # keep an eye on the script and see if all the jobs were accepted in the queue's waiting list
@@ -74,10 +79,10 @@ for i in $(seq 1 $minbuf); do
         dir=$(($dir * 2))
 done
 for i in $(seq $minbuf 2 $maxbuf); do
-  cons1=$(cat test/dir-$dir/decoupled_results | cut -d' ' -f1)
-  prod1=$(cat test/dir-$dir/decoupled_results | cut -d' ' -f2)
-  cons2=$(cat test/dir-$dir/p2p_results | cut -d' ' -f1)
-  prod2=$(cat test/dir-$dir/p2p_results | cut -d' ' -f2)
+  cons1=$(cat $testdir/dir-$dir/decoupled_results | cut -d' ' -f1)
+  prod1=$(cat $testdir/dir-$dir/decoupled_results | cut -d' ' -f2)
+  cons2=$(cat $testdir/dir-$dir/p2p_results | cut -d' ' -f1)
+  prod2=$(cat $testdir/dir-$dir/p2p_results | cut -d' ' -f2)
   echo "$dir $con1 $prod1 $cons2 $prod2" >> $rez
   dir=$(($dir * 4))
 done

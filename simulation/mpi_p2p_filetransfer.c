@@ -16,6 +16,20 @@ double cons_time = 0;
 
 uint64_t MAX_DATA = 1048576;
 
+
+void handle_err(int errcode, char *str)
+{
+  char msg[MPI_MAX_ERROR_STRING];
+  char processor_name[MPI_MAX_PROCESSOR_NAME];
+  int32_t namelen, resultlen, my_rank;
+
+  MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+  MPI_Get_processor_name(processor_name,&namelen);
+  MPI_Error_string(errcode, msg, &resultlen);
+  fprintf(stderr,"Process %d on %s %s: %s\nStack trace:\n", my_rank, processor_name,str, msg);
+  MPI_Abort(MPI_COMM_WORLD, 1);
+} 
+
 void producer()
 {
   int32_t rank, nprod;
@@ -56,6 +70,8 @@ void producer()
   char *data = malloc(MAX_DATA);
  
   double start_time = MPI_Wtime();
+
+  //fprintf(stderr, "i=%d chunk=%d\n", i, chunk); 
   while (i < chunk) {
     uint32_t count;
     if (rank == nprod - 1 && file_size % bufsize && i == chunk - 1) {
@@ -66,6 +82,7 @@ void producer()
 
     memcpy(data, file_addr + (begin + i) * bufsize, count);
     //double start_time = MPI_Wtime();
+    //sleep(1);
     MPI_Send(data, count, MPI_CHAR, dest_cons, 0, MPI_COMM_WORLD);
     //double end_time = MPI_Wtime();
 
@@ -128,6 +145,7 @@ void consumer()
   double start_time = MPI_Wtime();
   while (i < chunk) {
     uint32_t count;
+    int err;
     if (rank == ncons - 1 && file_size % bufsize && i == chunk - 1) {
       count = bufsize - (nrbufs * bufsize - file_size);
     } else {
@@ -135,7 +153,10 @@ void consumer()
     }
 
     //double start_time = MPI_Wtime();
-    MPI_Recv(data, count, MPI_CHAR, source_prod, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    err = MPI_Recv(data, count, MPI_CHAR, source_prod, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    if (err != MPI_SUCCESS) {
+      handle_err(err, "MPI_Recv err\n");
+    }
     //    double end_time = MPI_Wtime();
 
     //cons_time += (end_time - start_time);

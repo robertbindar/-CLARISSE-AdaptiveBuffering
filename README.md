@@ -1,4 +1,4 @@
-# CLARISSE-AdaptiveBuffering
+# BufferFlow
 
 This project aims to increase the performance of a CLARISSE [1] environment by
 providing an adaptive buffering module.
